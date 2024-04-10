@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using PROG455_FinalProject_ExerciseTracker.Models;
-using static PROG455_FinalProject_ExerciseTracker.Models.Hasher;
 
 namespace PROG455_FinalProject_ExerciseTracker.Controllers
 {
@@ -10,8 +9,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
     /// </summary>
     public class UserController : Controller
     {
-        static string BaseUrl = "http://ec2-18-223-162-6.us-east-2.compute.amazonaws.com/";
-        static API api = new(BaseUrl);
+        private static API api = new();
 
         /// <summary>
         /// Displays the index view.
@@ -19,6 +17,9 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         /// <returns>The index view.</returns>
         public ActionResult Index()
         {
+            api = new(HttpContext.Session.GetString("API")
+                    ?? throw new NullReferenceException($"{HttpContext.Session} : API"));
+
             return View();
         }
 
@@ -49,18 +50,18 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 var name = (string)collection["Name"]!
                     ?? throw new InvalidCastException($"{nameof(collection)} : Name : string");
 
-                var password = GetStringHash((string)collection["Password"]!
+                var password = Hasher.SHA256Hash((string)collection["Password"]!
                     ?? throw new InvalidCastException($"{nameof(collection)} : Password : string"));
 
                 await api.AsyncPOST("post.php?", new Dictionary<string, string>
                 {
                     {
                         "query",
-                        new APIQuery
+                        Hasher.UTF8Encode(new APIQuery
                         {
                             Table = "PROG455_FP",
                             Query = $"SELECT * FROM Users WHERE Name = '{name}' AND Password = '{password}'"
-                        }.ToString()
+                        })
                     }
                 });
 
@@ -109,7 +110,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 var name = (string)collection["Name"]!
                     ?? throw new InvalidCastException($"{nameof(collection)} : Name : string");
 
-                var password = GetStringHash((string)collection["Password"]!
+                var password = Hasher.SHA256Hash((string)collection["Password"]!
                     ?? throw new InvalidCastException($"{nameof(collection)} : Password : string"));
 
                 User user = new(name, password);
@@ -118,12 +119,12 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 {
                     {
                         "non-query",
-                        new APIQuery
+                        Hasher.UTF8Encode(new APIQuery
                         {
                             Table = "PROG455_FP",
                             Query = "INSERT INTO Users (ID, Name, Password) " +
                             $"VALUES ('{user.ID}', '{user.Name}', '{user.Password}')"
-                        }.ToString()
+                        })
                     }
                 });
 
@@ -154,11 +155,11 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 {
                     {
                         "query",
-                        new APIQuery
+                        Hasher.UTF8Encode(new APIQuery
                         {
                             Table = "PROG455_FP",
                             Query = $"SELECT * FROM Users WHERE ID = '{id}'"
-                        }.ToString()
+                        })
                     }
                 });
 

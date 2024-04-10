@@ -8,6 +8,8 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
     {
         private readonly ILogger<HomeController> _logger;
 
+        private readonly string BaseUrl = "http://ec2-18-223-162-6.us-east-2.compute.amazonaws.com/";
+
         public HomeController(ILogger<HomeController> logger)
         {
             _logger = logger;
@@ -15,6 +17,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
 
         public IActionResult Index()
         {
+            HttpContext.Session.SetString("API", BaseUrl);
             return View();
         }
 

@@ -1,29 +1,38 @@
 ﻿@model PROG455_FinalProject_ExerciseTracker.Models.User
 
 @{
-    ViewData["Title"] = "Sign In";
+    ViewData["Title"] = "SignIn";
 }
 
-<h1>Sign In</h1>
+<h1>SignIn</h1>
 
-
-@using (Html.BeginForm("SignIn", "User", FormMethod.Post))
-{
-
-    <div class="form-group">
-        @Html.LabelFor(m => m.Name, new { @class = "col-md-2 control-label" })
-        <div class="col-md-10">
-            @Html.TextBoxFor(m => m.Name, new { @class = "form-control" })
-        </div>
+<h4>User</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="SignIn">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group">
+                <label asp-for="Name" class="control-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Password" class="control-label"></label>
+                <input asp-for="Password" class="form-control" />
+                <span asp-validation-for="Password" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Sign-in" class="btn btn-primary" />
+            </div>
+        </form>
     </div>
-    <div class="form-group">
-        @Html.LabelFor(m => m.Password, new { @class = "col-md-2 control-label" })
-        <div class="col-md-10">
-            @Html.PasswordFor(m => m.Password, new { @class = "form-control" })
-        </div>
-    </div>
+</div>
 
-    <div class="form-group">
-        <input type="submit" class="btn btn-default" value="Sign In" />
-    </div>
+<div>
+    <a asp-action="Index">Back</a>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
 }

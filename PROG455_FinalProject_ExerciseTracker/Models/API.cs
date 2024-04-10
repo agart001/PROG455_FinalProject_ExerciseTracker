@@ -40,7 +40,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Models
             var request = new FormUrlEncodedContent(values);
             using (HttpClient client = new HttpClient())
             {
-                client.BaseAddress = new Uri(url);
+                client.BaseAddress = new Uri(url!);
                 client.DefaultRequestHeaders.Accept.Add(
                     new MediaTypeWithQualityHeaderValue("application/json"));
 

@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography;
+﻿using Newtonsoft.Json;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace PROG455_FinalProject_ExerciseTracker.Models
@@ -13,7 +14,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Models
         /// </summary>
         /// <param name="input">The string to be hashed.</param>
         /// <returns>The hexadecimal representation of the computed hash.</returns>
-        public static string GetStringHash(string input)
+        public static string SHA256Hash(string input)
         {
             byte[] inputBytes = Encoding.UTF8.GetBytes(input);
 
@@ -30,6 +31,34 @@ namespace PROG455_FinalProject_ExerciseTracker.Models
 
                 return builder.ToString();
             }
+        }
+
+        public static string UTF8Encode(object input) 
+        {
+            string json = JsonConvert.SerializeObject(input, Formatting.None);
+            byte[] bytes = Encoding.UTF8.GetBytes(json);
+            var convert = Convert.ToBase64String(bytes);
+            return convert;
+        }
+
+
+        public static int CreateID()
+        {
+            // Generate a new GUID
+            int[] id = new int[9];
+            Random rand;
+
+            for (int i = 0; i < id.Length; i++)
+            {
+                rand = new Random();
+                id[i] = rand.Next(1, 10);
+            }
+
+            // Parse the numeric string to an integer
+            string str = string.Join("", id);
+            int num = int.Parse(str);
+
+            return num;
         }
     }
 
