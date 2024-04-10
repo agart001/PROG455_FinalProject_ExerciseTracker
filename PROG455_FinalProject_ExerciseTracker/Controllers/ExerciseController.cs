@@ -23,11 +23,11 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             {
                 {
                     "query",
-                    new APIQuery
+                    Hasher.UTF8Encode(new APIQuery
                     {
                         Table = "PROG455_FP",
                         Query = $"SELECT * FROM Exercises WHERE UserID = '{userid}'"
-                    }.ToString()
+                    })
                 }
             });
 
