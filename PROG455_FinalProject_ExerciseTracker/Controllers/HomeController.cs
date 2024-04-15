@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 using PROG455_FinalProject_ExerciseTracker.Models;
 using System.Diagnostics;
 
@@ -17,6 +18,15 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
 
         public IActionResult Index()
         {
+            var dict = new Dictionary<DateTime, Tuple<int, int>>
+            {
+                {DateTime.Today, new(3, 15) }
+            };
+
+            var json = JsonConvert.SerializeObject(dict);
+
+            var id = Hasher.CreateID();
+
             HttpContext.Session.SetString("API", BaseUrl);
             return View();
         }

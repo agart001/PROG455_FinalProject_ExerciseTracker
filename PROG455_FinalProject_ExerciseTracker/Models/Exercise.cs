@@ -35,65 +35,29 @@ namespace PROG455_FinalProject_ExerciseTracker.Models
         }
     }
 
-    public class ExerciseData
+    public class ExerciseData<T> where T : notnull
     {
         public int ID { get; set; }
-        public Dictionary<DateTime, object> Data { get; set; }
+        public Dictionary<DateTime, T> Data { get; set; }
 
         public ExerciseData()
         {
             ID = Hasher.CreateID();
-            Data = new Dictionary<DateTime, object>();
+            Data = new Dictionary<DateTime, T>();
         }
 
-        public ExerciseData(Dictionary<DateTime, object> data)
+        public ExerciseData(Dictionary<DateTime, T> data)
         {
             ID = Hasher.CreateID();
             Data = data;
         }
-    }
 
-    public class ExerciseConverter : JsonConverter<Exercise>
-    {
-        public override bool CanWrite => false;
-
-        public override Exercise ReadJson(JsonReader reader, Type objectType, Exercise existingValue, bool hasExistingValue, JsonSerializer serializer)
+        public ExerciseData(int id, Dictionary<DateTime, T> data)
         {
-            var exercise = existingValue ?? new Exercise();
-
-            while (reader.Read())
-            {
-                if (reader.TokenType == JsonToken.PropertyName)
-                {
-                    var propertyName = reader.Value.ToString();
-
-                    if (propertyName.Equals("ID", StringComparison.OrdinalIgnoreCase))
-                    {
-                        exercise.ID = reader.ReadAsInt32() ?? exercise.ID;
-                    }
-                    else if (propertyName.Equals("Name", StringComparison.OrdinalIgnoreCase))
-                    {
-                        exercise.Name = reader.ReadAsString() ?? exercise.Name;
-                    }
-                    else if (propertyName.Equals("Description", StringComparison.OrdinalIgnoreCase))
-                    {
-                        exercise.Description = reader.ReadAsString() ?? exercise.Description;
-                    }
-                    else if (propertyName.Equals("DataType", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var enumValue = reader.ReadAsString();
-                        exercise.DataType = (Exercise.EDataType)Enum.Parse(typeof(Exercise.EDataType), enumValue, true);
-                    }
-                }
-            }
-
-            return exercise;
-        }
-
-        public override void WriteJson(JsonWriter writer, Exercise value, JsonSerializer serializer)
-        {
-            throw new NotImplementedException();
+            ID = id;
+            Data = data;
         }
     }
+
 
 }

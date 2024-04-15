@@ -90,6 +90,12 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             }
         }
 
+        public ActionResult Details(int id)
+        {
+            HttpContext.Session.SetString("ExerciseID", $"{id}");
+            return RedirectToAction("Index", "ExerciseData");
+        }
+
         // GET: ExerciseController/Edit/5
         public ActionResult Edit(int id)
         {
