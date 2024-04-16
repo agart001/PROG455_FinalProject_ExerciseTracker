@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PROG455_FinalProject_ExerciseTracker.Models;
+using System.Reflection;
 using System.Text.Json.Nodes;
 
 namespace PROG455_FinalProject_ExerciseTracker.Controllers
@@ -13,72 +14,77 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         // GET: ExerciseDataController
         public async Task<ActionResult> Index()
         {
-            api = new(HttpContext.Session.GetString("API")
+            try
+            {
+                api = new(HttpContext.Session.GetString("API")
                     ?? throw new NullReferenceException($"{HttpContext.Session} : API"));
 
-            var userid = HttpContext.Session.GetString("UserID")
-            ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
+                var userid = HttpContext.Session.GetString("UserID")
+                ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
 
-            var exerciseid = HttpContext.Session.GetString("ExerciseID")
-                    ?? throw new NullReferenceException($"{HttpContext.Session} : ExerciseID");
+                var exerciseid = HttpContext.Session.GetString("ExerciseID")
+                        ?? throw new NullReferenceException($"{HttpContext.Session} : ExerciseID");
 
-            await api.AsyncPOST("post.php?", new Dictionary<string, string>
-            {
+                await api.AsyncPOST("post.php?", new Dictionary<string, string>
                 {
-                    "query",
-                    Hasher.UTF8Encode(new APIQuery
                     {
-                        Table = "PROG455_FP",
-                        Query = $"SELECT DataType FROM Exercises WHERE UserID = '{userid}' AND ID = '{exerciseid}'"
-                    })
-                }
-            });
+                        "query",
+                        Hasher.UTF8Encode(new APIQuery
+                        {
+                            Table = "PROG455_FP",
+                            Query = $"SELECT DataType FROM Exercises WHERE UserID = '{userid}' AND ID = '{exerciseid}'"
+                        })
+                    }
+                });
 
-            JsonObject dt_res = (JsonObject)JsonNode.Parse(api.POSTResult!)![0]! ?? throw new InvalidCastException();
-            var type = dt_res.TryGetPropertyValue("DataType", out var val) ? val : null;
-            var test = type.ToString();
-            if (type == null) throw new NullReferenceException($"{nameof(type)} : Result Null");
+                var dt_res = (JObject)JArray.Parse(api.POSTResult!)![0]! ?? throw new InvalidCastException();
+                var type = dt_res.GetValue("DataType");
+                if (type == null) throw new NullReferenceException($"{nameof(type)} : Result Null");
 
-            await api.AsyncPOST("post.php?", new Dictionary<string, string>
-            {
+
+                await api.AsyncPOST("post.php?", new Dictionary<string, string>
                 {
-                    "query",
-                    Hasher.UTF8Encode(new APIQuery
                     {
-                        Table = "PROG455_FP",
-                        Query = $"SELECT ID, Data FROM ExerciseData WHERE UserID = '{userid}' AND ExerciseID = '{exerciseid}'"
-                    })
+                        "query",
+                        Hasher.UTF8Encode(new APIQuery
+                        {
+                            Table = "PROG455_FP",
+                            Query = $"SELECT ID, Data FROM ExerciseData WHERE UserID = '{userid}' AND ExerciseID = '{exerciseid}'"
+                        })
+                    }
+                });
+
+                //parse is messed up, not deserializing, may have to change default value(prev update may have messed it up)
+                var noderes = (JObject)JArray.Parse(api.POSTResult!)![0]! ?? throw new InvalidCastException();
+                if (noderes == null) throw new NullReferenceException($"{nameof(noderes)} : Result Null");
+
+                var nodeid = noderes.GetValue("ID");
+                var nodedata = noderes.GetValue("Data");
+
+                var data = nodedata![0]!.ToString();
+                var test = JsonConvert.DeserializeObject<Dictionary<DateTime, Tuple<int, int>>>(data);
+
+                HttpContext.Session.SetString("DataID", nodeid?.ToString()!);
+                var dataid = int.Parse(nodeid?.ToString()!);
+
+
+
+
+                switch (type.ToString())
+                {
+                    case "Unknown": return View(new ExerciseDataWrapper<string>(new(dataid,
+                            JsonConvert.DeserializeObject<Dictionary<DateTime, string>>(data!)!)));
+                    case "Reps": return View(new ExerciseDataWrapper<Tuple<int, int>>(new(dataid,
+                            JsonConvert.DeserializeObject<Dictionary<DateTime, Tuple<int, int>>>(data!)!)));
+                    case "Timed": return View(new ExerciseDataWrapper<TimeSpan>(new(dataid,
+                            JsonConvert.DeserializeObject<Dictionary<DateTime, TimeSpan>>(data!)!)));
+                    default: return View();
                 }
-            });
-
-            var res = (JsonObject)JsonNode.Parse(api.POSTResult!)![0]! ?? throw new InvalidCastException();
-            if (res == null) throw new NullReferenceException($"{nameof(res)} : Result Null");
-
-            var jdataid = res.TryGetPropertyValue("ID", out var _dataid) ? _dataid : null;
-            var jdata = res.TryGetPropertyValue("Data", out var _data) ? _data : null;
-
-            var dataid = int.Parse(jdataid?.ToString()!);
-            var data = jdata?.ToString();
-
-
-            dynamic exercisedata = null;
-            switch(type.ToString())
-            {
-                case "Unknown":
-                    exercisedata = new ExerciseData<string>(dataid, 
-                        JsonConvert.DeserializeObject<Dictionary<DateTime, string>>(data!)!);
-                    break;
-                case "Reps":
-                    exercisedata = new ExerciseData<Tuple<int, int>>(dataid,
-                        JsonConvert.DeserializeObject<Dictionary<DateTime, Tuple<int, int>>>(data!)!);
-                    break;
-                case "Timed":
-                    exercisedata = new ExerciseData<TimeSpan>(dataid, 
-                        JsonConvert.DeserializeObject<Dictionary<DateTime, TimeSpan>>(data!)!);
-                    break;
             }
-
-            return View();
+            catch
+            {
+                return View();
+            }
         }
 
         // GET: ExerciseDataController/Details/5
@@ -88,23 +94,131 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         }
 
         // GET: ExerciseDataController/Create
-        public ActionResult Create()
+        public ActionResult Create(string type)
         {
-            return View();
+            switch (type)
+            {
+                case "Tuple`2": return View(new ExerciseDateForm<Tuple<int, int>>());
+                case "TimeSpan": return View(new ExerciseDateForm<TimeSpan>());
+                case "String": return View(new ExerciseDateForm<string>());
+                default:
+                    return View();
+            }
         }
 
         // POST: ExerciseDataController/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Create(IFormCollection collection)
+        public async Task<ActionResult> Create(IFormCollection collection)
         {
             try
             {
+                var userid = HttpContext.Session.GetString("UserID")
+                ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
+
+                var exerciseid = HttpContext.Session.GetString("ExerciseID")
+                        ?? throw new NullReferenceException($"{HttpContext.Session} : ExerciseID");
+
+                var dataid = HttpContext.Session.GetString("DataID")
+                        ?? throw new NullReferenceException($"{HttpContext.Session} : DataID");
+
+                await api.AsyncPOST("post.php?", new Dictionary<string, string>
+                {
+                    {
+                        "query",
+                        Hasher.UTF8Encode(new APIQuery
+                        {
+                            Table = "PROG455_FP",
+                            Query = $"SELECT Data FROM ExerciseData WHERE UserID = '{userid}' " +
+                            $"AND ExerciseID = '{exerciseid}' AND ID = '{dataid}'"
+                        })
+                    }
+                });
+
+                var node = (JObject)JArray.Parse(api.POSTResult!)![0]! ?? throw new InvalidCastException();
+                var data = JObject.Parse(node["Data"]!.ToString());
+
+                var type = (string)collection["DataType"]!
+                    ?? throw new InvalidCastException($"{nameof(collection)} : DataType : string");
+
+                var date = DateTime.Parse(collection["Date"]!);
+
+                JToken token = null;
+                switch (type)
+                {
+                    case "Tuple`2": token = RepsDataToken(collection); break;
+                    case "TimeSpan": token = TimedDataToken(collection); break;
+                    default: token = UnknownDataToken(collection); break;
+                }
+
+                data[date.ToString("yyyy-MM-ddTHH:mm:ssK")] = token;
+
+                node["Data"] = data;
+
+                var newdata = node.ToString(Formatting.None);
+
+                await api.AsyncPOST("post.php?", new Dictionary<string, string>
+                {
+                    {
+                        "query",
+                        Hasher.UTF8Encode(new APIQuery
+                        {
+                            Table = "PROG455_FP",
+                            Query = $"UPDATE ExerciseData SET Data = [{newdata}] WHERE UserID = '{userid}' " +
+                            $"AND ExerciseID = '{exerciseid}' AND ID = '{dataid}'"
+                        })
+                    }
+                });
+
                 return RedirectToAction(nameof(Index));
             }
             catch
             {
                 return View();
+            }
+        }
+
+        private JToken RepsDataToken(IFormCollection collection)
+        {
+            try
+            {
+                var sets = int.Parse(collection["Sets"]!);
+                var reps = int.Parse(collection["Reps"]!);
+
+                return JToken.FromObject(new Tuple<int, int>(sets, reps));
+            }
+            catch
+            {
+                throw new Exception();
+            }
+        }
+
+        private JToken TimedDataToken(IFormCollection collection)
+        {
+            try
+            {
+                var time = TimeSpan.Parse(collection["Time"]!);
+
+                return JToken.FromObject(time.ToString());
+            }
+            catch
+            {
+                throw new Exception();
+            }
+        }
+
+        private JToken UnknownDataToken(IFormCollection collection)
+        {
+            try
+            {
+                var value = (string)collection["Value"]!
+                    ?? throw new InvalidCastException($"{nameof(collection)} : Value : string");
+
+                return JToken.FromObject(value);
+            }
+            catch
+            {
+                throw new Exception();
             }
         }
 

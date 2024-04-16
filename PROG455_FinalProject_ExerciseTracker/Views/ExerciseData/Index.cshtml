@@ -1,6 +1,76 @@
-﻿
-@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
+﻿@model PROG455_FinalProject_ExerciseTracker.Models.IExerciseData
+
 @{
+
+    ViewData["Title"] = "Index";
 }
+
+<h1>Index</h1>
+
+<p>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                Date
+            </th>
+            @switch (Model.GenericTypeName())
+            {
+                case "Tuple`2":
+                    <th>
+                        Sets
+                    </th>
+                    <th>
+                        Reps
+                    </th>
+                    break;
+                case "TimeSpan":
+                    <th>
+                        Time
+                    </th>
+                    break;
+                default:
+                    <th>
+                        Value
+                    </th>
+                    break;
+            }
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            @foreach (var item in Model.Data)
+            {
+            <tr>
+                <td>
+                        @Html.DisplayFor(modelItem => item.Key)
+                </td>
+                    @switch (item.Value.GetType().Name)
+                    {
+                        case "Tuple`2":
+                            var cast = (Tuple<int, int>)item.Value;
+                            <td>
+                                    @Html.DisplayFor(modelItem => cast.Item1)
+                            </td>
+                            <td>
+                                    @Html.DisplayFor(modelItem => cast.Item2)
+                            </td>
+                            break;
+                        default:
+                            <td>
+                                    @Html.DisplayFor(modelItem => item.Value)
+                            </td>
+                            break;
+                    }
+                <td>
+                    @Html.ActionLink("Edit", "Edit", new { id = item.Key }) |
+                    @Html.ActionLink("Details", "Details", new { id = item.Key }) |
+                    @Html.ActionLink("Delete", "Delete", new { id = item.Key })
+                </td>
+            </tr>
+            }
+        </tr>
+    </tbody>
+</table>
