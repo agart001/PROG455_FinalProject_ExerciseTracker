@@ -2,6 +2,7 @@
 
 @{
     ViewData["Title"] = "Create";
+    var datatype = ViewData["DataType"] as string;
 }
 
 <h1>Create</h1>
@@ -11,16 +12,15 @@
 <div class="row">
     <div class="col-md-4">
         <form asp-action="Create">
-            <input name="DataType" value=@Model.GenericTypeName() type="hidden"/>
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <div class="form-group">
                 <label asp-for="Date" class="control-label"></label>
                 <input asp-for="Date" class="form-control" />
                 <span asp-validation-for="Date" class="text-danger"></span>
             </div>
-            @switch(Model.GenericTypeName())
+            @switch(datatype)
             {
-                case "Tuple`2":
+                case "Reps":
                     <div class="form-group">
                         <label class="control-label">Sets</label>
                         <input class="form-control" name="Sets" type="number" />
@@ -30,7 +30,7 @@
                         <input class="form-control" name="Reps" type="number" />
                     </div>
                     break;
-                case "TimeSpan":
+                case "Timed":
                     <div class="form-group">
                         <label class="control-label">Time</label>
                         <input class="form-control" name="Time" type="time" />

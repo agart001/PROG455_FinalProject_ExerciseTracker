@@ -61,7 +61,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 var nodeid = noderes.GetValue("ID");
                 var nodedata = noderes.GetValue("Data");
 
-                var data = nodedata![0]!.ToString();
+                var data = nodedata!.ToString();
                 var test = JsonConvert.DeserializeObject<Dictionary<DateTime, Tuple<int, int>>>(data);
 
                 HttpContext.Session.SetString("DataID", nodeid?.ToString()!);
@@ -69,15 +69,20 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
 
 
 
-
+                ViewData["DataType"] = type.ToString();
                 switch (type.ToString())
                 {
-                    case "Unknown": return View(new ExerciseDataWrapper<string>(new(dataid,
-                            JsonConvert.DeserializeObject<Dictionary<DateTime, string>>(data!)!)));
-                    case "Reps": return View(new ExerciseDataWrapper<Tuple<int, int>>(new(dataid,
+                    case "Reps":
+                        var settings = new JsonSerializerSettings
+                        {
+                            Converters = { new TupleConverter() }
+                        };
+                        return View(new ExerciseDataWrapper<Tuple<int, int>>(new(dataid,
                             JsonConvert.DeserializeObject<Dictionary<DateTime, Tuple<int, int>>>(data!)!)));
                     case "Timed": return View(new ExerciseDataWrapper<TimeSpan>(new(dataid,
                             JsonConvert.DeserializeObject<Dictionary<DateTime, TimeSpan>>(data!)!)));
+                    case "Unknown": return View(new ExerciseDataWrapper<string>(new(dataid,
+                            JsonConvert.DeserializeObject<Dictionary<DateTime, string>>(data!)!)));
                     default: return View();
                 }
             }
@@ -96,11 +101,13 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         // GET: ExerciseDataController/Create
         public ActionResult Create(string type)
         {
+            TempData["DataType"] = type;
+            ViewData["DataType"] = type;
             switch (type)
             {
-                case "Tuple`2": return View(new ExerciseDateForm<Tuple<int, int>>());
-                case "TimeSpan": return View(new ExerciseDateForm<TimeSpan>());
-                case "String": return View(new ExerciseDateForm<string>());
+                case "Reps": return View(new ExerciseDateForm<Tuple<int, int>>());
+                case "Timed": return View(new ExerciseDateForm<TimeSpan>());
+                case "Unknown": return View(new ExerciseDateForm<string>());
                 default:
                     return View();
             }
@@ -122,6 +129,9 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 var dataid = HttpContext.Session.GetString("DataID")
                         ?? throw new NullReferenceException($"{HttpContext.Session} : DataID");
 
+                var type = (string)TempData["DataType"]!
+                        ?? throw new NullReferenceException($"{TempData} : DataType");
+
                 await api.AsyncPOST("post.php?", new Dictionary<string, string>
                 {
                     {
@@ -136,35 +146,33 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 });
 
                 var node = (JObject)JArray.Parse(api.POSTResult!)![0]! ?? throw new InvalidCastException();
-                var data = JObject.Parse(node["Data"]!.ToString());
-
-                var type = (string)collection["DataType"]!
-                    ?? throw new InvalidCastException($"{nameof(collection)} : DataType : string");
+                var data = node.GetValue("Data")!.ToString();
 
                 var date = DateTime.Parse(collection["Date"]!);
 
-                JToken token = null;
+                string newdata;
                 switch (type)
                 {
-                    case "Tuple`2": token = RepsDataToken(collection); break;
-                    case "TimeSpan": token = TimedDataToken(collection); break;
-                    default: token = UnknownDataToken(collection); break;
+                    case "Reps": newdata = RepsDataToken(collection, data, date); break;
+                    case "Timed": newdata = TimedDataToken(collection, data, date); break;
+                    default: newdata = UnknownDataToken(collection, data, date); break;
                 }
 
-                data[date.ToString("yyyy-MM-ddTHH:mm:ssK")] = token;
+
+
+                /*data[date.ToString("yyyy-MM-ddTHH:mm:ssK")] = token;
 
                 node["Data"] = data;
 
-                var newdata = node.ToString(Formatting.None);
-
+                var newdata = node.ToString(Formatting.None);*/
                 await api.AsyncPOST("post.php?", new Dictionary<string, string>
                 {
                     {
-                        "query",
-                        Hasher.UTF8Encode(new APIQuery
+                        "non-query",
+                        Hasher.UTF8Encode(new
                         {
                             Table = "PROG455_FP",
-                            Query = $"UPDATE ExerciseData SET Data = [{newdata}] WHERE UserID = '{userid}' " +
+                            Query = $"UPDATE ExerciseData SET Data = '{newdata}' WHERE UserID = '{userid}' " +
                             $"AND ExerciseID = '{exerciseid}' AND ID = '{dataid}'"
                         })
                     }
@@ -178,47 +186,56 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             }
         }
 
-        private JToken RepsDataToken(IFormCollection collection)
+        private string RepsDataToken(IFormCollection collection, string jdict, DateTime date)
         {
             try
             {
+                var dict = JsonConvert.DeserializeObject<Dictionary<DateTime, Tuple<int, int>>>(jdict);
                 var sets = int.Parse(collection["Sets"]!);
                 var reps = int.Parse(collection["Reps"]!);
 
-                return JToken.FromObject(new Tuple<int, int>(sets, reps));
+                dict!.Add(date, new Tuple<int, int>(sets, reps));
+
+                return JsonConvert.SerializeObject(dict, Formatting.None);
             }
-            catch
+            catch (Exception ex)
             {
-                throw new Exception();
+                throw new Exception("Error parsing Reps data", ex);
             }
         }
 
-        private JToken TimedDataToken(IFormCollection collection)
+        private string TimedDataToken(IFormCollection collection, string jdict, DateTime date)
         {
             try
             {
+                var dict = JsonConvert.DeserializeObject<Dictionary<DateTime, TimeSpan>>(jdict);
                 var time = TimeSpan.Parse(collection["Time"]!);
 
-                return JToken.FromObject(time.ToString());
+                dict!.Add(date, time);
+
+                return JsonConvert.SerializeObject(dict, Formatting.None);
             }
-            catch
+            catch (Exception ex)
             {
-                throw new Exception();
+                throw new Exception("Error parsing Timed data", ex);
             }
         }
 
-        private JToken UnknownDataToken(IFormCollection collection)
+        private string UnknownDataToken(IFormCollection collection, string jdict, DateTime date)
         {
             try
             {
+                var dict = JsonConvert.DeserializeObject<Dictionary<DateTime, string>>(jdict);
                 var value = (string)collection["Value"]!
                     ?? throw new InvalidCastException($"{nameof(collection)} : Value : string");
 
-                return JToken.FromObject(value);
+                dict!.Add(date, value);
+
+                return JsonConvert.SerializeObject(dict, Formatting.None);
             }
-            catch
+            catch (Exception ex)
             {
-                throw new Exception();
+                throw new Exception("Error parsing Unknown data", ex);
             }
         }
 
