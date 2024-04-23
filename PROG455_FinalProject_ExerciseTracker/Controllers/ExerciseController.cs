@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using PROG455_FinalProject_ExerciseTracker.Models;
 using System.Collections.Generic;
 using System.Xml.Linq;
@@ -13,13 +14,15 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         // GET: ExerciseController
         public async Task<ActionResult> Index()
         {
-            api = new(HttpContext.Session.GetString("API")
+            try
+            {
+                api = new(HttpContext.Session.GetString("API")
                     ?? throw new NullReferenceException($"{HttpContext.Session} : API"));
 
-            var userid = HttpContext.Session.GetString("UserID")
-                    ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
+                var userid = HttpContext.Session.GetString("UserID")
+                        ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
 
-            await api.AsyncPOST("post.php?", new Dictionary<string, string>
+                await api.AsyncPOST("post.php?", new Dictionary<string, string>
             {
                 {
                     "query",
@@ -31,13 +34,20 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 }
             });
 
-            var res = api.POSTResult;
-            if (res == null) throw new NullReferenceException($"{nameof(res)} : Result Null");
+                var res = api.POSTResult;
+                if (res == null) throw new NullReferenceException($"{nameof(res)} : Result Null");
 
-            var lis = JsonConvert.DeserializeObject<List<Exercise>>(res);
-            if (lis == null) throw new NullReferenceException($"{nameof(lis)} : Deserialization Failed");
+                var jarr = JArray.Parse(res);
 
-            return View(lis);
+                var lis = jarr.ToObject<List<Exercise>>();
+                if (lis == null) throw new NullReferenceException($"{nameof(lis)} : Deserialization Failed");
+
+                return View(lis);
+            }
+            catch
+            {
+                return RedirectToAction("Account","User");
+            }
         }
 
 
@@ -97,18 +107,55 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         }
 
         // GET: ExerciseController/Edit/5
-        public ActionResult Edit(int id)
+        public ActionResult Edit(string token)
         {
-            return View();
+            var exercise = JToken.Parse(token).ToObject<Exercise>()!;
+            HttpContext.Session.SetString("ExerciseID", $"{exercise.ID}");
+            TempData["ExerciseName"] = exercise.Name;
+            TempData["ExerciseDesc"] = exercise.Description;
+            return View(exercise);
         }
 
         // POST: ExerciseController/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit(int id, IFormCollection collection)
+        public async Task<ActionResult> Edit(IFormCollection collection)
         {
             try
             {
+                var userid = HttpContext.Session.GetString("UserID")
+                    ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
+
+                var exerciseid = HttpContext.Session.GetString("ExerciseID")
+                    ?? throw new NullReferenceException($"{HttpContext.Session} : ExerciseID");
+
+
+                var cur_name = TempData["ExerciseName"] as string;
+                var cur_desc = TempData["ExerciseDesc"] as string;
+
+                var new_name = (string)collection["Name"]
+                    ?? throw new InvalidCastException($"{nameof(collection)} : Name : string");
+
+                var new_desc = (string)collection["Description"]
+                    ?? throw new InvalidCastException($"{nameof(collection)} : Description : string");
+
+
+                var name = (cur_name != new_name) ? new_name : cur_name;
+                var desc = (cur_desc != new_desc) ? new_desc : cur_desc;
+
+                await api.AsyncPOST("post.php?", new Dictionary<string, string>
+                {
+                    {
+                        "non-query",
+                        Hasher.UTF8Encode(new
+                        {
+                            Table = "PROG455_FP",
+                            Query = $"UPDATE Exercises SET Name = '{name}', Description = '{desc}' " +
+                            $"WHERE UserID = '{userid}' AND ID = '{exerciseid}'"
+                        })
+                    }
+                });
+
                 return RedirectToAction(nameof(Index));
             }
             catch
@@ -118,18 +165,38 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         }
 
         // GET: ExerciseController/Delete/5
-        public ActionResult Delete(int id)
+        public ActionResult Delete(string token)
         {
-            return View();
+            var exercise = JToken.Parse(token).ToObject<Exercise>()!;
+            HttpContext.Session.SetString("ExerciseID", $"{exercise.ID}");
+            return View(exercise);
         }
 
         // POST: ExerciseController/Delete/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Delete(int id, IFormCollection collection)
+        public async Task<ActionResult> Delete(IFormCollection collection)
         {
             try
             {
+                var userid = HttpContext.Session.GetString("UserID")
+                    ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
+
+                var exerciseid = HttpContext.Session.GetString("ExerciseID")
+                    ?? throw new NullReferenceException($"{HttpContext.Session} : ExerciseID");
+
+                await api.AsyncPOST("post.php?", new Dictionary<string, string>
+                {
+                    {
+                        "non-query",
+                        Hasher.UTF8Encode(new
+                        {
+                            Table = "PROG455_FP",
+                            Query = $"DELETE FROM Exercises WHERE UserID = '{userid}' AND ID = '{exerciseid}'"
+                        })
+                    }
+                });
+
                 return RedirectToAction(nameof(Index));
             }
             catch

@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json.Linq;
 using PROG455_FinalProject_ExerciseTracker.Models;
 
 namespace PROG455_FinalProject_ExerciseTracker.Controllers
@@ -60,26 +61,25 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                         Hasher.UTF8Encode(new APIQuery
                         {
                             Table = "PROG455_FP",
-                            Query = $"SELECT * FROM Users WHERE Name = '{name}' AND Password = '{password}'"
+                            Query = $"SELECT ID FROM Users WHERE Name = '{name}' AND Password = '{password}'"
                         })
                     }
                 });
 
                 var res = api.POSTResult;
                 if (res == null) throw new NullReferenceException($"{nameof(res)} : Result Null");
-                var lis = api.NSJsonDeserialize<List<User>>(res);
 
-                if (lis == null) throw new NullReferenceException($"{nameof(lis)} : Deserialization Failed");
+                var jobj = (JObject)JArray.Parse(res)![0]!;
 
-                User user = lis.FirstOrDefault()!;
+                var userid = jobj.GetValue("ID")!.ToString();
 
-                HttpContext.Session.SetString("UserID", $"{user.ID}");
+                HttpContext.Session.SetString("UserID", $"{userid}");
 
                 return RedirectToAction(nameof(Account));
             }
             catch
             {
-                return View();
+                return RedirectToAction(nameof(SignUp));
             }
         }
 
@@ -148,8 +148,11 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         {
             try
             {
-                var id = HttpContext.Session.GetString("UserID")
-                    ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
+                var id = HttpContext.Session.GetString("UserID");
+                if (id == null)
+                {
+                    return RedirectToAction(nameof(SignIn));
+                }
 
                 await api.AsyncPOST("post.php?", new Dictionary<string, string>
                 {
@@ -165,17 +168,15 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
 
                 var res = api.POSTResult;
                 if (res == null) throw new NullReferenceException($"{nameof(res)} : Result Null");
-                var lis = api.NSJsonDeserialize<List<User>>(res);
+                var jobj = (JObject)JArray.Parse(res)![0]!;
 
-                if (lis == null) throw new NullReferenceException($"{nameof(lis)} : Deserialization Failed");
-
-                User user = lis.FirstOrDefault()!;
+                User user = jobj.ToObject<User>() ?? throw new InvalidCastException($"{nameof(jobj)} : Cast to User");
 
                 return View(user);
             }
             catch
             {
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction(nameof(SignIn));
             }
         }
     }

@@ -1,4 +1,5 @@
-﻿@model PROG455_FinalProject_ExerciseTracker.Models.IExerciseData
+﻿@using Newtonsoft.Json.Linq;
+@model PROG455_FinalProject_ExerciseTracker.Models.IExerciseData
 
 @{
     var datatype = ViewData["DataType"] as string;
@@ -8,7 +9,7 @@
 <h1>Index</h1>
 
 <p>
-    @Html.ActionLink("Add Data", "Create", new { type = datatype }) |
+    @Html.ActionLink("Add Data", "Create", new { type = datatype })
 </p>
 <table class="table">
     <thead>
@@ -44,33 +45,52 @@
         <tr>
             @foreach (var item in Model.Data)
             {
-            <tr>
+                var item_token = string.Empty;
                 <td>
-                        @Html.DisplayFor(modelItem => item.Key)
+                    @Html.DisplayFor(modelItem => item.Key)
                 </td>
-                    @switch (datatype)
-                    {
-                        case "Reps":
-                            var cast = (Tuple<int, int>)item.Value;
-                            <td>
-                                    @Html.DisplayFor(modelItem => cast.Item1)
-                            </td>
-                            <td>
-                                    @Html.DisplayFor(modelItem => cast.Item2)
-                            </td>
-                            break;
-                        default:
-                            <td>
-                                    @Html.DisplayFor(modelItem => item.Value)
-                            </td>
-                            break;
-                    }
+                @switch (datatype)
+                {
+                    case "Reps":
+                        var cast = (Tuple<int, int>)item.Value;
+                        item_token = JToken.FromObject(new ExerciseDataForm<Tuple<int, int>> 
+                            { 
+                                Date = item.Key, 
+                                Data = item.Value 
+                            }).ToString();
+                        <td>
+                            @Html.DisplayFor(modelItem => cast.Item1)
+                        </td>
+                        <td>
+                            @Html.DisplayFor(modelItem => cast.Item2)
+                        </td>
+                        break;
+                    case "Timed":
+                        item_token = JToken.FromObject(new ExerciseDataForm<TimeSpan>
+                        {
+                            Date = item.Key,
+                            Data = item.Value
+                        }).ToString();
+                        <td>
+                            @Html.DisplayFor(modelItem => item.Value)
+                        </td>
+                        break;
+                    default:
+                        item_token = JToken.FromObject(new ExerciseDataForm<string>
+                        {
+                            Date = item.Key,
+                            Data = item.Value
+                        }).ToString();
+                        <td>
+                            @Html.DisplayFor(modelItem => item.Value)
+                        </td>
+                        break;
+                }
                 <td>
-                    @Html.ActionLink("Edit", "Edit", new { /* id = item.Key*/ }) |
+                    @Html.ActionLink("Edit", "Edit", new { token = item_token }) |
                     @Html.ActionLink("Details", "Details", new { /* id = item.Key*/ }) |
                     @Html.ActionLink("Delete", "Delete", new { /*id = item.Key*/ })
                 </td>
-            </tr>
             }
         </tr>
     </tbody>

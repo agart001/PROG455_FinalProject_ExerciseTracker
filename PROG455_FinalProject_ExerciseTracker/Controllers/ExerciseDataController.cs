@@ -5,6 +5,7 @@ using Newtonsoft.Json.Linq;
 using PROG455_FinalProject_ExerciseTracker.Models;
 using System.Reflection;
 using System.Text.Json.Nodes;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace PROG455_FinalProject_ExerciseTracker.Controllers
 {
@@ -38,7 +39,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 });
 
                 var dt_res = (JObject)JArray.Parse(api.POSTResult!)![0]! ?? throw new InvalidCastException();
-                var type = dt_res.GetValue("DataType");
+                var type = dt_res.GetValue("DataType")!.ToString();
                 if (type == null) throw new NullReferenceException($"{nameof(type)} : Result Null");
 
 
@@ -54,7 +55,46 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                     }
                 });
 
-                //parse is messed up, not deserializing, may have to change default value(prev update may have messed it up)
+                Tuple<ActionResult, int> parse = ParseExerciseDataView(type);
+
+                if(parse.Item2 != -1)
+                {
+                    var newdataid = parse.Item2;
+                    var emptyjson = "{}";
+                    await api.AsyncPOST("post.php?", new Dictionary<string, string>
+                    {
+                        {
+                            "non-query",
+                            Hasher.UTF8Encode(new APIQuery
+                            {
+                                Table = "PROG455_FP",
+                                Query = "INSERT INTO ExerciseData (UserID, ExerciseID, ID, Data) VALUES " +
+                                $"('{userid}', '{exerciseid}', '{newdataid}', '{emptyjson}')"
+                            })
+                        }
+                    });
+                }
+
+                return parse.Item1; 
+            }
+            catch
+            {
+                return View();
+            }
+        }
+
+        private Tuple<ActionResult, int> ParseExerciseDataView(string type)
+        {
+            ActionResult actres = null;
+            if (api.POSTResult == "[]")
+            {
+                var newdataid = Hasher.CreateID();
+                actres = ParseExerciseDataModel(type, newdataid, null);
+                HttpContext.Session.SetString("DataID", $"{newdataid}");
+                return new Tuple<ActionResult, int>(actres, newdataid);
+            }
+            else
+            {
                 var noderes = (JObject)JArray.Parse(api.POSTResult!)![0]! ?? throw new InvalidCastException();
                 if (noderes == null) throw new NullReferenceException($"{nameof(noderes)} : Result Null");
 
@@ -67,28 +107,57 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 HttpContext.Session.SetString("DataID", nodeid?.ToString()!);
                 var dataid = int.Parse(nodeid?.ToString()!);
 
+                actres = ParseExerciseDataModel(type, dataid, data);
 
-
-                ViewData["DataType"] = type.ToString();
-                switch (type.ToString())
-                {
-                    case "Reps":
-                        var settings = new JsonSerializerSettings
-                        {
-                            Converters = { new TupleConverter() }
-                        };
-                        return View(new ExerciseDataWrapper<Tuple<int, int>>(new(dataid,
-                            JsonConvert.DeserializeObject<Dictionary<DateTime, Tuple<int, int>>>(data!)!)));
-                    case "Timed": return View(new ExerciseDataWrapper<TimeSpan>(new(dataid,
-                            JsonConvert.DeserializeObject<Dictionary<DateTime, TimeSpan>>(data!)!)));
-                    case "Unknown": return View(new ExerciseDataWrapper<string>(new(dataid,
-                            JsonConvert.DeserializeObject<Dictionary<DateTime, string>>(data!)!)));
-                    default: return View();
-                }
+                return new Tuple<ActionResult, int>(actres, -1);
             }
-            catch
+        }
+
+        private ActionResult ParseExerciseDataModel(string type, int dataid, string? data)
+        {
+            ViewData["DataType"] = type;
+            switch (type)
             {
-                return View();
+                case "Reps":
+
+                    if(data != null) 
+                    {
+                        return View(new ExerciseDataWrapper<Tuple<int, int>>(new(dataid,
+                        JsonConvert.DeserializeObject<Dictionary<DateTime, Tuple<int, int>>>(data)!)));
+                    }
+                    else
+                    {
+                        return View(new ExerciseDataWrapper<Tuple<int, int>>
+                            (new(dataid,new Dictionary<DateTime, Tuple<int, int>>())));
+                    }
+
+                case "Timed":
+
+                    if (data != null)
+                    {
+                        return View(new ExerciseDataWrapper<TimeSpan>(new(dataid,
+                        JsonConvert.DeserializeObject<Dictionary<DateTime, TimeSpan>>(data)!)));
+                    }
+                    else
+                    {
+                        return View(new ExerciseDataWrapper<TimeSpan>
+                            (new(dataid, new Dictionary<DateTime, TimeSpan>())));
+                    }
+
+                case "Unknown":
+
+                    if (data != null)
+                    {
+                        return View(new ExerciseDataWrapper<string>(new(dataid,
+                        JsonConvert.DeserializeObject<Dictionary<DateTime, string>>(data!)!)));
+                    }
+                    else
+                    {
+                        return View(new ExerciseDataWrapper<string>
+                            (new(dataid, new Dictionary<DateTime, string>())));
+                    }
+                    
+                default: return View();
             }
         }
 
@@ -105,9 +174,9 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             ViewData["DataType"] = type;
             switch (type)
             {
-                case "Reps": return View(new ExerciseDateForm<Tuple<int, int>>());
-                case "Timed": return View(new ExerciseDateForm<TimeSpan>());
-                case "Unknown": return View(new ExerciseDateForm<string>());
+                case "Reps": return View(new ExerciseDataForm<Tuple<int, int>>());
+                case "Timed": return View(new ExerciseDataForm<TimeSpan>());
+                case "Unknown": return View(new ExerciseDataForm<string>());
                 default:
                     return View();
             }
@@ -240,8 +309,19 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         }
 
         // GET: ExerciseDataController/Edit/5
-        public ActionResult Edit(int id)
+        public ActionResult Edit(string token)
         {
+            var type = (string)TempData["DataType"]!
+                        ?? throw new NullReferenceException($"{TempData} : DataType");
+
+            var jtok = JToken.Parse(token);
+            IExerciseDataForm? dataform;
+            switch(type)
+            {
+                case "Reps": dataform = jtok.ToObject<ExerciseDataForm<Tuple<int, int>>>(); break;
+                case "Timed": break;
+                default:  break;
+            }
             return View();
         }
 

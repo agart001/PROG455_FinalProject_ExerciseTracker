@@ -101,7 +101,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Models
         string GenericTypeName();
     }
 
-    public struct ExerciseDateForm<T> : IExerciseDataForm where T : notnull
+    public struct ExerciseDataForm<T> : IExerciseDataForm where T : notnull
     {
         private T data;
         public object Data
@@ -115,30 +115,5 @@ namespace PROG455_FinalProject_ExerciseTracker.Models
         public string GenericTypeName() => typeof(T).Name;
     }
 
-
-
-    public class TupleConverter : JsonConverter
-    {
-        public override bool CanConvert(Type objectType)
-        {
-            return objectType.IsGenericType && objectType.GetGenericTypeDefinition() == typeof(Tuple<,>);
-        }
-
-        public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
-        {
-            var tuple = (dynamic)value!;
-            writer.WriteValue($"({tuple.Item1},{tuple.Item2})");
-        }
-
-        public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
-        {
-            var token = JToken.Load(reader);
-            var value = token.Value<string>();
-            var values = value!.Trim('(', ')').Split(',');
-            var item1 = Convert.ChangeType(values[0], objectType.GetGenericArguments()[0]);
-            var item2 = Convert.ChangeType(values[1], objectType.GetGenericArguments()[1]);
-            return Activator.CreateInstance(objectType, item1, item2)!;
-        }
-    }
 
 }
