@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using NuGet.ProjectModel;
 using PROG455_FinalProject_ExerciseTracker.Models;
 using System.Reflection;
 using System.Text.Json.Nodes;
@@ -20,12 +21,14 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 api = new(HttpContext.Session.GetString("API")
                     ?? throw new NullReferenceException($"{HttpContext.Session} : API"));
 
+                //Retrieve User and Exercise ID's from the session data
                 var userid = HttpContext.Session.GetString("UserID")
                 ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
 
                 var exerciseid = HttpContext.Session.GetString("ExerciseID")
                         ?? throw new NullReferenceException($"{HttpContext.Session} : ExerciseID");
 
+                //Query the API Database to get the Exercise's DataType
                 await api.AsyncPOST("post.php?", new Dictionary<string, string>
                 {
                     {
@@ -38,11 +41,12 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                     }
                 });
 
+                //Verify and Parse the API result from the Exercise DataType
                 var dt_res = (JObject)JArray.Parse(api.POSTResult!)![0]! ?? throw new InvalidCastException();
                 var type = dt_res.GetValue("DataType")!.ToString();
                 if (type == null) throw new NullReferenceException($"{nameof(type)} : Result Null");
 
-
+                //Query the API to retrieve the ExerciseData associated with the Exercise and User ID
                 await api.AsyncPOST("post.php?", new Dictionary<string, string>
                 {
                     {
@@ -55,12 +59,16 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                     }
                 });
 
+                //Get the ActionResult view/Model
                 Tuple<ActionResult, int> parse = ParseExerciseDataView(type);
 
+                //If the 'int' of 'parse' is -1, then the ExerciseData already existed with the database
                 if(parse.Item2 != -1)
                 {
                     var newdataid = parse.Item2;
                     var emptyjson = "{}";
+
+                    //Query the API database and insert a new ExerciseData row with an empty data column
                     await api.AsyncPOST("post.php?", new Dictionary<string, string>
                     {
                         {
@@ -75,6 +83,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                     });
                 }
 
+                TempData["DataType"] = type;
                 return parse.Item1; 
             }
             catch
@@ -314,15 +323,41 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             var type = (string)TempData["DataType"]!
                         ?? throw new NullReferenceException($"{TempData} : DataType");
 
-            var jtok = JToken.Parse(token);
-            IExerciseDataForm? dataform;
-            switch(type)
+            var jtok = JObject.Parse(token);
+            var date = jtok.GetValue<DateTime>("Date");
+            dynamic data;
+            ViewData["DataType"] = type;
+            TempData["SessionDate"] = date;
+            switch (type)
             {
-                case "Reps": dataform = jtok.ToObject<ExerciseDataForm<Tuple<int, int>>>(); break;
-                case "Timed": break;
-                default:  break;
+                case "Reps":
+                    var dtok = jtok.GetValue("Data");
+                    var item1 = dtok.GetValue<int>("Item1");
+                    var item2 = dtok.GetValue<int>("Item2");
+                    data = new Tuple<int,int>(item1, item2);
+                    TempData["SessionData"] = data;
+                    return View(new ExerciseDataForm<Tuple<int, int>>
+                    {
+                        Date = date,
+                        Data = data
+                    });
+                case "Timed":
+                    data = jtok.GetValue<TimeSpan>("Data");
+                    TempData["SessionData"] = data;
+                    return View(new ExerciseDataForm<TimeSpan>
+                    {
+                        Date = date,
+                        Data = data
+                    });
+                default:
+                    data = jtok.GetValue<string>("Data");
+                    TempData["SessionData"] = data;
+                    return View(new ExerciseDataForm<string>
+                    {
+                        Date = date,
+                        Data = data
+                    });
             }
-            return View();
         }
 
         // POST: ExerciseDataController/Edit/5
@@ -332,6 +367,39 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         {
             try
             {
+                /*var userid = HttpContext.Session.GetString("UserID")
+                    ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
+
+                var exerciseid = HttpContext.Session.GetString("ExerciseID")
+                    ?? throw new NullReferenceException($"{HttpContext.Session} : ExerciseID");
+
+
+                var cur_name = TempData["ExerciseName"] as string;
+                var cur_desc = TempData["ExerciseDesc"] as string;
+
+                var new_name = (string)collection["Name"]
+                    ?? throw new InvalidCastException($"{nameof(collection)} : Name : string");
+
+                var new_desc = (string)collection["Description"]
+                    ?? throw new InvalidCastException($"{nameof(collection)} : Description : string");
+
+
+                var name = (cur_name != new_name) ? new_name : cur_name;
+                var desc = (cur_desc != new_desc) ? new_desc : cur_desc;
+
+                await api.AsyncPOST("post.php?", new Dictionary<string, string>
+                {
+                    {
+                        "non-query",
+                        Hasher.UTF8Encode(new
+                        {
+                            Table = "PROG455_FP",
+                            Query = $"UPDATE Exercises SET Name = '{name}', Description = '{desc}' " +
+                            $"WHERE UserID = '{userid}' AND ID = '{exerciseid}'"
+                        })
+                    }
+                });*/
+
                 return RedirectToAction(nameof(Index));
             }
             catch

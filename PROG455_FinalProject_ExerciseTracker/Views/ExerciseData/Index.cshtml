@@ -53,10 +53,10 @@
                 {
                     case "Reps":
                         var cast = (Tuple<int, int>)item.Value;
-                        item_token = JToken.FromObject(new ExerciseDataForm<Tuple<int, int>> 
+                        item_token = JObject.FromObject(new ExerciseDataForm<Tuple<int, int>> 
                             { 
                                 Date = item.Key, 
-                                Data = item.Value 
+                                Data = cast
                             }).ToString();
                         <td>
                             @Html.DisplayFor(modelItem => cast.Item1)
@@ -66,7 +66,7 @@
                         </td>
                         break;
                     case "Timed":
-                        item_token = JToken.FromObject(new ExerciseDataForm<TimeSpan>
+                        item_token = JObject.FromObject(new ExerciseDataForm<TimeSpan>
                         {
                             Date = item.Key,
                             Data = item.Value
@@ -76,7 +76,7 @@
                         </td>
                         break;
                     default:
-                        item_token = JToken.FromObject(new ExerciseDataForm<string>
+                        item_token = JObject.FromObject(new ExerciseDataForm<string>
                         {
                             Date = item.Key,
                             Data = item.Value
@@ -88,7 +88,6 @@
                 }
                 <td>
                     @Html.ActionLink("Edit", "Edit", new { token = item_token }) |
-                    @Html.ActionLink("Details", "Details", new { /* id = item.Key*/ }) |
                     @Html.ActionLink("Delete", "Delete", new { /*id = item.Key*/ })
                 </td>
             }

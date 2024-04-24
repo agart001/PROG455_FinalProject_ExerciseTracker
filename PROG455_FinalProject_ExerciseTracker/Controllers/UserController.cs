@@ -48,12 +48,14 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         {
             try
             {
+                // Parse form collection variable, the User's Name and Password
                 var name = (string)collection["Name"]!
                     ?? throw new InvalidCastException($"{nameof(collection)} : Name : string");
 
                 var password = Hasher.SHA256Hash((string)collection["Password"]!
                     ?? throw new InvalidCastException($"{nameof(collection)} : Password : string"));
 
+                //Query the database through the API, Select the User's ID based on their Name and Password
                 await api.AsyncPOST("post.php?", new Dictionary<string, string>
                 {
                     {
@@ -66,13 +68,17 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                     }
                 });
 
+                //Verify that the API returned a result, whether that is an error code or not (TODO: further checks for errors needed)
                 var res = api.POSTResult;
                 if (res == null) throw new NullReferenceException($"{nameof(res)} : Result Null");
 
+                //Parse API json result(which is returned in an array)
                 var jobj = (JObject)JArray.Parse(res)![0]!;
 
+                //Get Jtoken of the ID variable
                 var userid = jobj.GetValue("ID")!.ToString();
 
+                //Set the User ID in the session for further use
                 HttpContext.Session.SetString("UserID", $"{userid}");
 
                 return RedirectToAction(nameof(Account));
@@ -107,14 +113,17 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         {
             try
             {
+                // Parse form collection variable, the User's Name and Password
                 var name = (string)collection["Name"]!
                     ?? throw new InvalidCastException($"{nameof(collection)} : Name : string");
 
                 var password = Hasher.SHA256Hash((string)collection["Password"]!
                     ?? throw new InvalidCastException($"{nameof(collection)} : Password : string"));
 
+                //Create a new User(this is mildy unecessary, but provides a new User ID)
                 User user = new(name, password);
 
+                //Query the API to insert the new User into the database
                 await api.AsyncPOST("post.php?", new Dictionary<string, string>
                 {
                     {
@@ -128,6 +137,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                     }
                 });
 
+                //Set the User ID in the session for further use
                 HttpContext.Session.SetString("UserID", $"{user.ID}");
 
                 return RedirectToAction(nameof(Account));
@@ -148,12 +158,16 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         {
             try
             {
+                //Get the User's ID from the session data
                 var id = HttpContext.Session.GetString("UserID");
                 if (id == null)
                 {
+                    //If the user has not signed in/up, the session 'UserID' is null
+                    //Make the user sign in/up
                     return RedirectToAction(nameof(SignIn));
                 }
 
+                //Query the API database to gather the User's info
                 await api.AsyncPOST("post.php?", new Dictionary<string, string>
                 {
                     {
@@ -166,10 +180,14 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                     }
                 });
 
+                //Verify that the API returned a result, whether that is an error code or not (TODO: further checks for errors needed)
                 var res = api.POSTResult;
                 if (res == null) throw new NullReferenceException($"{nameof(res)} : Result Null");
+
+                //Parse API json result(which is returned in an array)
                 var jobj = (JObject)JArray.Parse(res)![0]!;
 
+                //Parse the JObject into the VM model
                 User user = jobj.ToObject<User>() ?? throw new InvalidCastException($"{nameof(jobj)} : Cast to User");
 
                 return View(user);
