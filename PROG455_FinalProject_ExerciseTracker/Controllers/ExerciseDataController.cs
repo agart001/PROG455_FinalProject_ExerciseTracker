@@ -4,6 +4,8 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NuGet.ProjectModel;
 using PROG455_FinalProject_ExerciseTracker.Models;
+using System.Collections;
+using System.Linq;
 using System.Reflection;
 using System.Text.Json.Nodes;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -111,7 +113,6 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 var nodedata = noderes.GetValue("Data");
 
                 var data = nodedata!.ToString();
-                var test = JsonConvert.DeserializeObject<Dictionary<DateTime, Tuple<int, int>>>(data);
 
                 HttpContext.Session.SetString("DataID", nodeid?.ToString()!);
                 var dataid = int.Parse(nodeid?.ToString()!);
@@ -236,13 +237,6 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                     default: newdata = UnknownDataToken(collection, data, date); break;
                 }
 
-
-
-                /*data[date.ToString("yyyy-MM-ddTHH:mm:ssK")] = token;
-
-                node["Data"] = data;
-
-                var newdata = node.ToString(Formatting.None);*/
                 await api.AsyncPOST("post.php?", new Dictionary<string, string>
                 {
                     {
@@ -260,7 +254,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             }
             catch
             {
-                return View();
+                return RedirectToAction(nameof(Index));
             }
         }
 
@@ -268,11 +262,11 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         {
             try
             {
-                var dict = JsonConvert.DeserializeObject<Dictionary<DateTime, Tuple<int, int>>>(jdict);
+                var dict = JsonConvert.DeserializeObject<Dictionary<DateTime, Tuple<int, int>>>(jdict) ?? throw new Exception();
                 var sets = int.Parse(collection["Sets"]!);
                 var reps = int.Parse(collection["Reps"]!);
 
-                dict!.Add(date, new Tuple<int, int>(sets, reps));
+                dict.Add(date, new Tuple<int, int>(sets, reps));
 
                 return JsonConvert.SerializeObject(dict, Formatting.None);
             }
@@ -327,6 +321,8 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             var date = jtok.GetValue<DateTime>("Date");
             dynamic data;
             ViewData["DataType"] = type;
+            TempData["DataType"] = type;
+            TempData["SessionToken"] = token;
             TempData["SessionDate"] = date;
             switch (type)
             {
@@ -336,57 +332,114 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                     var item2 = dtok.GetValue<int>("Item2");
                     data = new Tuple<int,int>(item1, item2);
                     TempData["SessionData"] = data;
-                    return View(new ExerciseDataForm<Tuple<int, int>>
-                    {
-                        Date = date,
-                        Data = data
-                    });
+                    return View();
                 case "Timed":
                     data = jtok.GetValue<TimeSpan>("Data");
                     TempData["SessionData"] = data;
-                    return View(new ExerciseDataForm<TimeSpan>
-                    {
-                        Date = date,
-                        Data = data
-                    });
+                    return View();
                 default:
                     data = jtok.GetValue<string>("Data");
                     TempData["SessionData"] = data;
-                    return View(new ExerciseDataForm<string>
-                    {
-                        Date = date,
-                        Data = data
-                    });
+                    return View();
             }
         }
 
         // POST: ExerciseDataController/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Edit(int id, IFormCollection collection)
+        public async Task<ActionResult> Edit(IFormCollection collection)
         {
             try
             {
-                /*var userid = HttpContext.Session.GetString("UserID")
-                    ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
+                //Get session ID variables
+                var userid = HttpContext.Session.GetString("UserID")
+                ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
 
                 var exerciseid = HttpContext.Session.GetString("ExerciseID")
-                    ?? throw new NullReferenceException($"{HttpContext.Session} : ExerciseID");
+                        ?? throw new NullReferenceException($"{HttpContext.Session} : ExerciseID");
+
+                var dataid = HttpContext.Session.GetString("DataID")
+                        ?? throw new NullReferenceException($"{HttpContext.Session} : DataID");
+
+                //Get tempdata variables, exercise type and data to be edited as jobject token
+                var jtok = JObject.Parse((string)TempData["SessionToken"]!);
+
+                var type = (string)TempData["DataType"]!
+                        ?? throw new NullReferenceException($"{TempData} : DataType");
+
+                //Query API to get data dictionary
+                await api.AsyncPOST("post.php?", new Dictionary<string, string>
+                {
+                    {
+                        "query",
+                        Hasher.UTF8Encode(new APIQuery
+                        {
+                            Table = "PROG455_FP",
+                            Query = $"SELECT Data FROM ExerciseData WHERE UserID = '{userid}' " +
+                            $"AND ExerciseID = '{exerciseid}' AND ID = '{dataid}'"
+                        })
+                    }
+                });
+
+                //Parse API result to get dictionary value
+                var node = (JObject)JArray.Parse(api.POSTResult!)![0]! ?? throw new InvalidCastException();
+                var jdict = node.GetValue("Data")!.ToString();
+
+                //Get current/new data date value
+                var cur_date = jtok.GetValue<DateTime>("Date");
+                var new_date = DateTime.Parse(collection["Date"]!);
+
+                //Set up hold variables for parsing based on type
+                IDictionary dict;
+                dynamic cur_data;
+                dynamic new_data;
+                switch (type)
+                {
+                    case "Reps":
+                        var dtok = jtok.GetValue("Data");
+                        var item1 = dtok.GetValue<int>("Item1");
+                        var item2 = dtok.GetValue<int>("Item2");
+                        cur_data = new Tuple<int, int>(item1, item2);
 
 
-                var cur_name = TempData["ExerciseName"] as string;
-                var cur_desc = TempData["ExerciseDesc"] as string;
+                        var sets = int.Parse(collection["Sets"]!);
+                        var reps = int.Parse(collection["Reps"]!);
+                        new_data = new Tuple<int,int>(sets, reps);
+                        dict = JsonConvert.DeserializeObject<Dictionary<DateTime, Tuple<int, int>>>(jdict)!;
+                        break;
+                    case "Timed":
+                        cur_data = jtok.GetValue<TimeSpan>("Data");
+                        new_data = TimeSpan.Parse(collection["Time"]!);
+                        dict = JsonConvert.DeserializeObject<Dictionary<DateTime, TimeSpan>>(jdict)!; 
+                        break;
+                    default:
+                        cur_data = jtok.GetValue<string>("Data");
+                        new_data = (string)collection["Value"]!;
+                        dict = JsonConvert.DeserializeObject<Dictionary<DateTime, string>>(jdict)!; 
+                        break;
+                }
 
-                var new_name = (string)collection["Name"]
-                    ?? throw new InvalidCastException($"{nameof(collection)} : Name : string");
+                //If the date remains unchanged, then
+                if(cur_date == new_date)
+                {
+                    //If the data is unchanged and the data values are different, reset the kvp
+                    if (new_data != cur_data)
+                    {
+                        dict[cur_date] = new_data;
+                    }
+                }
+                //If the date has changed 
+                else
+                {
+                    //Remove the old kvp, and add the new one
+                    dict.Remove(cur_date);
+                    dict.Add(new_date, new_data);
+                }
 
-                var new_desc = (string)collection["Description"]
-                    ?? throw new InvalidCastException($"{nameof(collection)} : Description : string");
+                //Reserialize the changed dictionary
+                var new_Data = JsonConvert.SerializeObject(dict);
 
-
-                var name = (cur_name != new_name) ? new_name : cur_name;
-                var desc = (cur_desc != new_desc) ? new_desc : cur_desc;
-
+                //Query the API to with the updated dictionary
                 await api.AsyncPOST("post.php?", new Dictionary<string, string>
                 {
                     {
@@ -394,11 +447,11 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                         Hasher.UTF8Encode(new
                         {
                             Table = "PROG455_FP",
-                            Query = $"UPDATE Exercises SET Name = '{name}', Description = '{desc}' " +
-                            $"WHERE UserID = '{userid}' AND ID = '{exerciseid}'"
+                            Query = $"UPDATE ExerciseData SET Data = '{new_Data}' WHERE UserID = '{userid}' " +
+                            $"AND ExerciseID = '{exerciseid}' AND ID = '{dataid}'"
                         })
                     }
-                });*/
+                });
 
                 return RedirectToAction(nameof(Index));
             }

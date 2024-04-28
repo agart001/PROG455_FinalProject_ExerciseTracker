@@ -2,7 +2,8 @@
 
 @{
     var datatype = ViewData["DataType"] as string;
-    var date = (DateTime)Model.Date;
+    var date = TempData["SessionDate"];
+    var data = TempData["SessionData"];
     ViewData["Title"] = "Edit";
 }
 
@@ -22,7 +23,7 @@
             @switch (datatype)
             {
                 case "Reps":
-                    var tup = (Tuple<int, int>)Model.Data;
+                    var tup = (Tuple<int, int>)data!;
                     <div class="form-group">
                         <label class="control-label">Sets</label>
                         <input class="form-control" value="@tup.Item1" name="Sets" type="number" />
@@ -33,7 +34,7 @@
                     </div>
                     break;
                 case "Timed":
-                    var tspan = (TimeSpan)Model.Data;
+                    var tspan = (TimeSpan)data!;
                     <div class="form-group">
                         <label class="control-label">Time</label>
                         <input class="form-control" value="@tspan" name="Time" type="time" />
@@ -42,7 +43,7 @@
                 default:
                     <div class="form-group">
                         <label class="control-label">Value</label>
-                        <input class="form-control" value="@Model.Data" name="Value" type="text" />
+                        <input class="form-control" value="@data" name="Value" type="text" />
                     </div>
                     break;
             }
