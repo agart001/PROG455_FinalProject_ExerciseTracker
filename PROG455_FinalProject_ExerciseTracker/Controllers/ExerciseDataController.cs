@@ -462,18 +462,87 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         }
 
         // GET: ExerciseDataController/Delete/5
-        public ActionResult Delete(int id)
+        public ActionResult Delete(string token)
         {
+            var type = (string)TempData["DataType"]!
+                        ?? throw new NullReferenceException($"{TempData} : DataType");
+           
+            TempData["SessionToken"] = ViewData["SessionToken"] = token;
+            TempData["DataType"] = ViewData["DataType"] = type;
             return View();
         }
 
         // POST: ExerciseDataController/Delete/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public ActionResult Delete(int id, IFormCollection collection)
+        public async Task<ActionResult> Delete(IFormCollection collection)
         {
             try
             {
+                //Get session ID variables
+                var userid = HttpContext.Session.GetString("UserID")
+                ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
+
+                var exerciseid = HttpContext.Session.GetString("ExerciseID")
+                        ?? throw new NullReferenceException($"{HttpContext.Session} : ExerciseID");
+
+                var dataid = HttpContext.Session.GetString("DataID")
+                        ?? throw new NullReferenceException($"{HttpContext.Session} : DataID");
+
+                //Get tempdata variables, exercise type and data to be edited as jobject token
+                var jtok = JObject.Parse((string)TempData["SessionToken"]!);
+
+                var type = (string)TempData["DataType"]!
+                        ?? throw new NullReferenceException($"{TempData} : DataType");
+
+                //Query API to get data dictionary
+                await api.AsyncPOST("post.php?", new Dictionary<string, string>
+                {
+                    {
+                        "query",
+                        Hasher.UTF8Encode(new APIQuery
+                        {
+                            Table = "PROG455_FP",
+                            Query = $"SELECT Data FROM ExerciseData WHERE UserID = '{userid}' " +
+                            $"AND ExerciseID = '{exerciseid}' AND ID = '{dataid}'"
+                        })
+                    }
+                });
+
+                //Parse API result to get dictionary value
+                var node = (JObject)JArray.Parse(api.POSTResult!)![0]! ?? throw new InvalidCastException();
+                var jdict = node.GetValue("Data")!.ToString();
+
+                //Set up hold variables for parsing based on type
+                IDictionary dict;
+                switch (type)
+                {
+                    case "Reps": dict = JsonConvert.DeserializeObject<Dictionary<DateTime, Tuple<int, int>>>(jdict)!; break;
+                    case "Timed": dict = JsonConvert.DeserializeObject<Dictionary<DateTime, TimeSpan>>(jdict)!; break;
+                    default: dict = JsonConvert.DeserializeObject<Dictionary<DateTime, string>>(jdict)!; break;
+                }
+
+                var date = jtok.GetValue<DateTime>("Date");
+
+                dict.Remove(date);
+
+                //Reserialize the changed dictionary
+                var new_Data = JsonConvert.SerializeObject(dict);
+
+                //Query the API to with the updated dictionary
+                await api.AsyncPOST("post.php?", new Dictionary<string, string>
+                {
+                    {
+                        "non-query",
+                        Hasher.UTF8Encode(new
+                        {
+                            Table = "PROG455_FP",
+                            Query = $"UPDATE ExerciseData SET Data = '{new_Data}' WHERE UserID = '{userid}' " +
+                            $"AND ExerciseID = '{exerciseid}' AND ID = '{dataid}'"
+                        })
+                    }
+                });
+
                 return RedirectToAction(nameof(Index));
             }
             catch

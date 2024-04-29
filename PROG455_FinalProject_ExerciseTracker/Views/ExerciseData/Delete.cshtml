@@ -1,0 +1,70 @@
+﻿@using Newtonsoft.Json
+@using Newtonsoft.Json.Linq;
+@model PROG455_FinalProject_ExerciseTracker.Models.IExerciseDataForm
+
+@{
+    var datatype = ViewData["DataType"] as string;
+    var vdseshtok = ViewData["SessionToken"] as string;
+    var token = JObject.Parse(vdseshtok!);
+    var date = DateTime.Parse(token.GetValue("Date")!.ToString());
+    var data = token.GetValue("Data")!.ToString();
+    ViewData["Title"] = "Delete";
+}
+
+<h1>Delete</h1>
+
+<h3>Are you sure you want to delete this?</h3>
+<div>
+    <h4>IExerciseDataForm</h4>
+    <hr />
+    <dl class="row">
+        <dt class = "col-sm-2">
+            Date
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => date)
+        </dd>
+        @switch(datatype)
+        {
+            case "Reps":
+                var tup = JsonConvert.DeserializeObject<Tuple<int, int>>(data);
+               
+                <dt class="col-sm-2">
+                    Sets
+                </dt>
+                <dd class="col-sm-10">
+                    @Html.DisplayFor(model => tup!.Item1)
+                </dd>
+
+                <dt class="col-sm-2">
+                    Reps
+                </dt>
+                <dd class="col-sm-10">
+                    @Html.DisplayFor(model => tup!.Item2)
+                </dd>
+                break;
+            case "Timed":
+                var tspan = JsonConvert.DeserializeObject<TimeSpan>(data);
+                <dt class="col-sm-2">
+                    Time
+                </dt>
+                <dd class="col-sm-10">
+                    @Html.DisplayFor(model => tspan)
+                </dd>
+                break;
+            default:
+                <dt class="col-sm-2">
+                    Value
+                </dt>
+                <dd class="col-sm-10">
+                    @Html.DisplayFor(model => data)
+                </dd>
+                break;
+        }
+    </dl>
+    
+    <form asp-action="Delete">
+        <input type="submit" value="Delete" class="btn btn-danger" /> |
+        <a asp-action="Index">Back to List</a>
+    </form>
+</div>
