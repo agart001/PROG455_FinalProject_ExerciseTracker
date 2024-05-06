@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using PROG455_FinalProject_ExerciseTracker.Models;
 using System.Diagnostics;
+using System.Security.Principal;
 
 namespace PROG455_FinalProject_ExerciseTracker.Controllers
 {
@@ -16,20 +17,28 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             _logger = logger;
         }
 
+        // TODO: FINISH SECURE HOMECONTROLLER login
         public IActionResult Index()
         {
-            var dict = new Dictionary<DateTime, Tuple<int, int>>
-            {
-                {DateTime.Today, new(3, 15) }
-            };
-
-            var json = JsonConvert.SerializeObject(dict);
-
-            var id = Hasher.CreateID();
-
             HttpContext.Session.SetString("API", BaseUrl);
             return View();
         }
+
+        /*[HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult Index(IFormCollection collection)
+        {
+            try
+            {
+
+                HttpContext.Session.SetString("API", BaseUrl);
+                return RedirectToAction("Index", "User");
+            }
+            catch
+            {
+                return View();
+            }
+        }*/
 
         public IActionResult Privacy()
         {

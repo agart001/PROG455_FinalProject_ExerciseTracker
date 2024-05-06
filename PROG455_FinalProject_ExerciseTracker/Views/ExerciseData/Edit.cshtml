@@ -1,9 +1,13 @@
-﻿@model PROG455_FinalProject_ExerciseTracker.Models.IExerciseDataForm
+﻿@using Newtonsoft.Json
+@using Newtonsoft.Json.Linq;
+@model PROG455_FinalProject_ExerciseTracker.Models.IExerciseDataForm
 
 @{
     var datatype = ViewData["DataType"] as string;
-    var date = TempData["SessionDate"];
-    var data = TempData["SessionData"];
+    var vdseshtok = ViewData["SessionToken"] as string;
+    var token = JObject.Parse(vdseshtok!);
+    var date = DateTime.Parse(token.GetValue("Date")!.ToString());
+    var data = token.GetValue("Data")!.ToString();
     ViewData["Title"] = "Edit";
 }
 
@@ -23,7 +27,7 @@
             @switch (datatype)
             {
                 case "Reps":
-                    var tup = (Tuple<int, int>)data!;
+                    var tup = JsonConvert.DeserializeObject<Tuple<int, int>>(data);
                     <div class="form-group">
                         <label class="control-label">Sets</label>
                         <input class="form-control" value="@tup.Item1" name="Sets" type="number" />
@@ -34,7 +38,7 @@
                     </div>
                     break;
                 case "Timed":
-                    var tspan = (TimeSpan)data!;
+                    var tspan = JsonConvert.DeserializeObject<TimeSpan>(data);
                     <div class="form-group">
                         <label class="control-label">Time</label>
                         <input class="form-control" value="@tspan" name="Time" type="time" />

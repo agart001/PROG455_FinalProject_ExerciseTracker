@@ -1,0 +1,39 @@
+﻿@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Index</h1>
+
+<h4>API</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Index">
+            <div class="form-group">
+                <label class="control-label">API url</label>
+                <input name="API" class="form-control" />
+            </div>
+            <div class="form-group">
+                <label class="control-label">User</label>
+                <input name="User" class="form-control" />
+            </div>
+            <div class="form-group">
+                <label class="control-label">User</label>
+                <input name="Password" class="form-control" />
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Create" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

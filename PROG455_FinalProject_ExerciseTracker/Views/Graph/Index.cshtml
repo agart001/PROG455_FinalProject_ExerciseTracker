@@ -1,0 +1,22 @@
+﻿@using ChartJSCore.Helpers;
+@using ChartJSCore.Models;
+
+
+@{
+    ViewData["Title"] = "Home Page";
+}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div><canvas id="lineChart"></canvas></div>
+
+@{
+    var _chart = ViewData["chart"]!;
+    Chart chart = (Chart)_chart;
+}
+
+@section Scripts {
+
+    <script>
+        @Html.Raw(chart.CreateChartCode("lineChart"));
+    </script>
+}

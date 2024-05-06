@@ -41,6 +41,13 @@ namespace PROG455_FinalProject_ExerciseTracker.Models
             return convert;
         }
 
+        public static T UTF8Decode<T>(string input)
+        {
+            byte[] bytes = Convert.FromBase64String(input);
+            string json = Encoding.UTF8.GetString(bytes);
+            return JsonConvert.DeserializeObject<T>(json)!;
+        }
+
 
         public static int CreateID()
         {

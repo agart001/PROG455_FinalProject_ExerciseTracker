@@ -4,12 +4,13 @@
 @{
     var datatype = ViewData["DataType"] as string;
     ViewData["Title"] = "Index";
+    var model_data_token = JObject.FromObject(Model.Data).ToString();
 }
 
 <h1>Index</h1>
 
 <p>
-    @Html.ActionLink("Add Data", "Create", new { type = datatype })
+    @Html.ActionLink("Add Data", "Create", new { type = datatype }) | @Html.ActionLink("Add Data", "Index", "Graph", new { token = model_data_token })
 </p>
 <table class="table">
     <thead>
@@ -71,8 +72,10 @@
                             Date = item.Key,
                             Data = item.Value
                         }).ToString();
+                        var tspan = (TimeSpan)item.Value;
+                        var formatted = tspan.ToString(@"mm\:ss");
                         <td>
-                            @Html.DisplayFor(modelItem => item.Value)
+                            @Html.DisplayFor(modelItem => formatted)
                         </td>
                         break;
                     default:

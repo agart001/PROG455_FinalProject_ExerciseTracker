@@ -32,8 +32,11 @@
                     break;
                 case "Timed":
                     <div class="form-group">
-                        <label class="control-label">Time</label>
-                        <input class="form-control" name="Time" type="time" />
+                        <label for="minutes">Minutes:</label>
+                        <input type="number" id="minutes" name="minutes" min="0" max="59">
+
+                        <label for="seconds">Seconds:</label>
+                        <input type="number" id="seconds" name="seconds" min="0" max="59">
                     </div>
                     break;
                 default:

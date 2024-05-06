@@ -15,6 +15,63 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
     public class ExerciseDataController : Controller
     {
         private static API api;
+
+        private async Task<string> GetDataDict()
+        {
+            var userid = HttpContext.Session.GetString("UserID")
+                ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
+
+            var exerciseid = HttpContext.Session.GetString("ExerciseID")
+                    ?? throw new NullReferenceException($"{HttpContext.Session} : ExerciseID");
+
+            var dataid = HttpContext.Session.GetString("DataID")
+                    ?? throw new NullReferenceException($"{HttpContext.Session} : DataID");
+
+            await api.AsyncPOST("post.php?", new Dictionary<string, string>
+            {
+                {
+                    "query",
+                    Hasher.UTF8Encode(new APIQuery
+                    {
+                        Table = "PROG455_FP",
+                        Query = $"SELECT Data FROM ExerciseData WHERE UserID = '{userid}' " +
+                        $"AND ExerciseID = '{exerciseid}' AND ID = '{dataid}'"
+                    })
+                }
+            });
+
+            var node = (JObject)JArray.Parse(api.POSTResult!)![0]! ?? throw new InvalidCastException();
+            var data = node.GetValue("Data")!.ToString();
+            return data;
+        }
+
+        private async void SetDataDict(string newdata)
+        {
+            var userid = HttpContext.Session.GetString("UserID")
+                ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
+
+            var exerciseid = HttpContext.Session.GetString("ExerciseID")
+                    ?? throw new NullReferenceException($"{HttpContext.Session} : ExerciseID");
+
+            var dataid = HttpContext.Session.GetString("DataID")
+                    ?? throw new NullReferenceException($"{HttpContext.Session} : DataID");
+
+            await api.AsyncPOST("post.php?", new Dictionary<string, string>
+            {
+                {
+                    "non-query",
+                    Hasher.UTF8Encode(new
+                    {
+                        Table = "PROG455_FP",
+                        Query = $"UPDATE ExerciseData SET Data = '{newdata}' WHERE UserID = '{userid}' " +
+                        $"AND ExerciseID = '{exerciseid}' AND ID = '{dataid}'"
+                    })
+                }
+            });
+        }
+
+        #region Index
+
         // GET: ExerciseDataController
         public async Task<ActionResult> Index()
         {
@@ -84,7 +141,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                         }
                     });
                 }
-
+                HttpContext.Session.SetString("DataType", type);
                 TempData["DataType"] = type;
                 return parse.Item1; 
             }
@@ -93,6 +150,8 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 return View();
             }
         }
+
+        #region Parse View 
 
         private Tuple<ActionResult, int> ParseExerciseDataView(string type)
         {
@@ -171,12 +230,11 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             }
         }
 
-        // GET: ExerciseDataController/Details/5
-        public ActionResult Details(int id)
-        {
-            return View();
-        }
+        #endregion
 
+        #endregion
+
+        #region Create
         // GET: ExerciseDataController/Create
         public ActionResult Create(string type)
         {
@@ -258,6 +316,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             }
         }
 
+        #region Types
         private string RepsDataToken(IFormCollection collection, string jdict, DateTime date)
         {
             try
@@ -281,7 +340,9 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             try
             {
                 var dict = JsonConvert.DeserializeObject<Dictionary<DateTime, TimeSpan>>(jdict);
-                var time = TimeSpan.Parse(collection["Time"]!);
+                var mins = int.Parse(collection["Minutes"]!);
+                var secs = int.Parse(collection["Seconds"]!);
+                var time = new TimeSpan(0,mins, secs);
 
                 dict!.Add(date, time);
 
@@ -311,37 +372,21 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             }
         }
 
+        #endregion
+
+        #endregion
+
+        #region Edit
+
         // GET: ExerciseDataController/Edit/5
         public ActionResult Edit(string token)
         {
             var type = (string)TempData["DataType"]!
                         ?? throw new NullReferenceException($"{TempData} : DataType");
 
-            var jtok = JObject.Parse(token);
-            var date = jtok.GetValue<DateTime>("Date");
-            dynamic data;
-            ViewData["DataType"] = type;
-            TempData["DataType"] = type;
-            TempData["SessionToken"] = token;
-            TempData["SessionDate"] = date;
-            switch (type)
-            {
-                case "Reps":
-                    var dtok = jtok.GetValue("Data");
-                    var item1 = dtok.GetValue<int>("Item1");
-                    var item2 = dtok.GetValue<int>("Item2");
-                    data = new Tuple<int,int>(item1, item2);
-                    TempData["SessionData"] = data;
-                    return View();
-                case "Timed":
-                    data = jtok.GetValue<TimeSpan>("Data");
-                    TempData["SessionData"] = data;
-                    return View();
-                default:
-                    data = jtok.GetValue<string>("Data");
-                    TempData["SessionData"] = data;
-                    return View();
-            }
+            ViewData["DataType"] = TempData["DataType"] = type;
+            ViewData["SessionToken"] = TempData["SessionToken"] = token;
+            return View();
         }
 
         // POST: ExerciseDataController/Edit/5
@@ -351,57 +396,33 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         {
             try
             {
-                //Get session ID variables
-                var userid = HttpContext.Session.GetString("UserID")
-                ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
-
-                var exerciseid = HttpContext.Session.GetString("ExerciseID")
-                        ?? throw new NullReferenceException($"{HttpContext.Session} : ExerciseID");
-
-                var dataid = HttpContext.Session.GetString("DataID")
-                        ?? throw new NullReferenceException($"{HttpContext.Session} : DataID");
-
                 //Get tempdata variables, exercise type and data to be edited as jobject token
                 var jtok = JObject.Parse((string)TempData["SessionToken"]!);
 
                 var type = (string)TempData["DataType"]!
                         ?? throw new NullReferenceException($"{TempData} : DataType");
 
-                //Query API to get data dictionary
-                await api.AsyncPOST("post.php?", new Dictionary<string, string>
-                {
-                    {
-                        "query",
-                        Hasher.UTF8Encode(new APIQuery
-                        {
-                            Table = "PROG455_FP",
-                            Query = $"SELECT Data FROM ExerciseData WHERE UserID = '{userid}' " +
-                            $"AND ExerciseID = '{exerciseid}' AND ID = '{dataid}'"
-                        })
-                    }
-                });
-
                 //Parse API result to get dictionary value
-                var node = (JObject)JArray.Parse(api.POSTResult!)![0]! ?? throw new InvalidCastException();
-                var jdict = node.GetValue("Data")!.ToString();
+                var jdict = await GetDataDict();
 
                 //Get current/new data date value
                 var cur_date = jtok.GetValue<DateTime>("Date");
                 var new_date = DateTime.Parse(collection["Date"]!);
 
-                //Set up hold variables for parsing based on type
+                //Set up hold variables for new/current data parsing based on type
                 IDictionary dict;
                 dynamic cur_data;
                 dynamic new_data;
                 switch (type)
                 {
                     case "Reps":
+                        //Current
                         var dtok = jtok.GetValue("Data");
                         var item1 = dtok.GetValue<int>("Item1");
                         var item2 = dtok.GetValue<int>("Item2");
                         cur_data = new Tuple<int, int>(item1, item2);
 
-
+                        //New
                         var sets = int.Parse(collection["Sets"]!);
                         var reps = int.Parse(collection["Reps"]!);
                         new_data = new Tuple<int,int>(sets, reps);
@@ -437,21 +458,10 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 }
 
                 //Reserialize the changed dictionary
-                var new_Data = JsonConvert.SerializeObject(dict);
+                var newdata = JsonConvert.SerializeObject(dict);
 
-                //Query the API to with the updated dictionary
-                await api.AsyncPOST("post.php?", new Dictionary<string, string>
-                {
-                    {
-                        "non-query",
-                        Hasher.UTF8Encode(new
-                        {
-                            Table = "PROG455_FP",
-                            Query = $"UPDATE ExerciseData SET Data = '{new_Data}' WHERE UserID = '{userid}' " +
-                            $"AND ExerciseID = '{exerciseid}' AND ID = '{dataid}'"
-                        })
-                    }
-                });
+                //Update the changed dictionary
+                SetDataDict(newdata);
 
                 return RedirectToAction(nameof(Index));
             }
@@ -460,6 +470,10 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 return View();
             }
         }
+
+        #endregion
+
+        #region Delete
 
         // GET: ExerciseDataController/Delete/5
         public ActionResult Delete(string token)
@@ -479,39 +493,14 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         {
             try
             {
-                //Get session ID variables
-                var userid = HttpContext.Session.GetString("UserID")
-                ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
-
-                var exerciseid = HttpContext.Session.GetString("ExerciseID")
-                        ?? throw new NullReferenceException($"{HttpContext.Session} : ExerciseID");
-
-                var dataid = HttpContext.Session.GetString("DataID")
-                        ?? throw new NullReferenceException($"{HttpContext.Session} : DataID");
-
                 //Get tempdata variables, exercise type and data to be edited as jobject token
                 var jtok = JObject.Parse((string)TempData["SessionToken"]!);
 
                 var type = (string)TempData["DataType"]!
                         ?? throw new NullReferenceException($"{TempData} : DataType");
 
-                //Query API to get data dictionary
-                await api.AsyncPOST("post.php?", new Dictionary<string, string>
-                {
-                    {
-                        "query",
-                        Hasher.UTF8Encode(new APIQuery
-                        {
-                            Table = "PROG455_FP",
-                            Query = $"SELECT Data FROM ExerciseData WHERE UserID = '{userid}' " +
-                            $"AND ExerciseID = '{exerciseid}' AND ID = '{dataid}'"
-                        })
-                    }
-                });
-
                 //Parse API result to get dictionary value
-                var node = (JObject)JArray.Parse(api.POSTResult!)![0]! ?? throw new InvalidCastException();
-                var jdict = node.GetValue("Data")!.ToString();
+                var jdict = await GetDataDict();
 
                 //Set up hold variables for parsing based on type
                 IDictionary dict;
@@ -527,21 +516,10 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 dict.Remove(date);
 
                 //Reserialize the changed dictionary
-                var new_Data = JsonConvert.SerializeObject(dict);
+                var newdata = JsonConvert.SerializeObject(dict);
 
-                //Query the API to with the updated dictionary
-                await api.AsyncPOST("post.php?", new Dictionary<string, string>
-                {
-                    {
-                        "non-query",
-                        Hasher.UTF8Encode(new
-                        {
-                            Table = "PROG455_FP",
-                            Query = $"UPDATE ExerciseData SET Data = '{new_Data}' WHERE UserID = '{userid}' " +
-                            $"AND ExerciseID = '{exerciseid}' AND ID = '{dataid}'"
-                        })
-                    }
-                });
+                //Update the changed dictionary
+                SetDataDict(newdata);
 
                 return RedirectToAction(nameof(Index));
             }
@@ -550,5 +528,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 return View();
             }
         }
+
+        #endregion
     }
 }
