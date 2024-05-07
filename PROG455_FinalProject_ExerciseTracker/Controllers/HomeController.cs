@@ -24,22 +24,6 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             return View();
         }
 
-        /*[HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult Index(IFormCollection collection)
-        {
-            try
-            {
-
-                HttpContext.Session.SetString("API", BaseUrl);
-                return RedirectToAction("Index", "User");
-            }
-            catch
-            {
-                return View();
-            }
-        }*/
-
         public IActionResult Privacy()
         {
             return View();

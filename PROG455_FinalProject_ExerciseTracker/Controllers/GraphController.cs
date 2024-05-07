@@ -1,5 +1,6 @@
 ﻿using ChartJSCore.Helpers;
 using ChartJSCore.Models;
+using ChartJSCore.Plugins.Zoom;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
@@ -10,6 +11,16 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
 {
     public class GraphController : Controller
     {
+        private Dictionary<string, ChartColor> ColorByName = new Dictionary<string, ChartColor>()
+        {
+            { "Red", ChartColor.FromRgba(255, 99, 132, 0.2) },
+            { "Blue", ChartColor.FromRgba(54, 162, 235, 0.2) },
+            { "Yellow", ChartColor.FromRgba(255, 206, 86, 0.2) },
+            { "Green", ChartColor.FromRgba(75, 192, 192, 0.2) },
+            { "Purple", ChartColor.FromRgba(153, 102, 255, 0.2) },
+            { "Orange", ChartColor.FromRgba(255, 159, 64, 0.2) }
+        };
+
         // GET: GraphController
         public IActionResult Index(string token)
         {
@@ -21,13 +32,13 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             switch(type)
             {
                 case "Reps":
-                    chart = RepsChart(token);
-                    break;
-                case "Timed":
                     chart = GenerateVerticalBarChart(token);
                     break;
-                default:
+                case "Timed":
+                    chart = GenerateLineChart(token);
                     break;
+                default:
+                    return RedirectToAction("Index", "ExerciseData");
             }
             
 
@@ -36,86 +47,8 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             return View();
         }
 
-        private Chart RepsChart(string token)
-        {
-            var dict = JsonConvert.DeserializeObject<Dictionary<DateTime, Tuple<int, int>>>(token);
 
-            var datestrings = new List<string>();
-            var sets = new List<double?>();
-            var reps = new List<double?>();
-            foreach (var kvp in dict)
-            {
-                var key = kvp.Key;
-                var value = kvp.Value;
-                datestrings.Add(key.ToString());
-                sets.Add(value.Item1);
-                reps.Add(value.Item2);
-            }
-
-
-            Chart chart = new Chart();
-
-            chart.Type = Enums.ChartType.Line;
-
-            Data data = new Data();
-            data.Labels = datestrings;
-
-            LineDataset set_dataset = new LineDataset()
-            {
-                Label = "Sets",
-                Data = sets,
-                Fill = "false",
-                Tension = 0.1,
-                BackgroundColor = new List<ChartColor> { ChartColor.FromRgba(75, 100, 100, 0.4) },
-                BorderColor = new List<ChartColor> { ChartColor.FromRgb(75, 100, 100) },
-                BorderCapStyle = "butt",
-                BorderDash = new List<int> { },
-                BorderDashOffset = 0.0,
-                BorderJoinStyle = "miter",
-                PointBorderColor = new List<ChartColor> { ChartColor.FromRgb(75, 100, 100) },
-                PointBackgroundColor = new List<ChartColor> { ChartColor.FromHexString("#ffffff") },
-                PointBorderWidth = new List<int> { 1 },
-                PointHoverRadius = new List<int> { 5 },
-                PointHoverBackgroundColor = new List<ChartColor> { ChartColor.FromRgb(75, 100, 100) },
-                PointHoverBorderColor = new List<ChartColor> { ChartColor.FromRgb(220, 220, 220) },
-                PointHoverBorderWidth = new List<int> { 2 },
-                PointRadius = new List<int> { 1 },
-                PointHitRadius = new List<int> { 10 },
-                SpanGaps = false
-            };
-
-            LineDataset rep_dataset = new LineDataset()
-            {
-                Label = "Reps",
-                Data = reps,
-                Fill = "false",
-                Tension = 0.1,
-                BackgroundColor = new List<ChartColor> { ChartColor.FromRgba(75, 192, 192, 0.4) },
-                BorderColor = new List<ChartColor> { ChartColor.FromRgb(75, 192, 192) },
-                BorderCapStyle = "butt",
-                BorderDash = new List<int> { },
-                BorderDashOffset = 0.0,
-                BorderJoinStyle = "miter",
-                PointBorderColor = new List<ChartColor> { ChartColor.FromRgb(75, 192, 192) },
-                PointBackgroundColor = new List<ChartColor> { ChartColor.FromHexString("#ffffff") },
-                PointBorderWidth = new List<int> { 1 },
-                PointHoverRadius = new List<int> { 5 },
-                PointHoverBackgroundColor = new List<ChartColor> { ChartColor.FromRgb(75, 192, 192) },
-                PointHoverBorderColor = new List<ChartColor> { ChartColor.FromRgb(220, 220, 220) },
-                PointHoverBorderWidth = new List<int> { 2 },
-                PointRadius = new List<int> { 1 },
-                PointHitRadius = new List<int> { 10 },
-                SpanGaps = false
-            };
-
-            data.Datasets = [set_dataset, rep_dataset];
-
-            chart.Data = data;
-
-            return chart;
-        }
-
-        private static Chart GenerateVerticalBarChart(string token)
+        private Chart GenerateLineChart(string token)
         {
             var dict = JsonConvert.DeserializeObject<Dictionary<DateTime, TimeSpan>>(token);
 
@@ -126,49 +59,146 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 var key = kvp.Key;
                 var value = kvp.Value;
                 datestrings.Add(key.ToString());
-                
-                var dt = Convert.ToDouble(value);
-                times.Add(dt);
+                times.Add(value.TotalSeconds);
             }
 
             Chart chart = new Chart();
-            chart.Type = Enums.ChartType.Bar;
 
-
-            Data data = new Data();
-            data.Labels = datestrings;
-
-            BarDataset dataset = new BarDataset()
+            chart.Type = Enums.ChartType.Line;
+            /*chart.Options.Scales = new Dictionary<string, Scale>();
+            CartesianScale xAxis = new CartesianScale();
+            xAxis.Display = true;
+            xAxis.Title = new Title
             {
-                Label = "# of Votes",
+                Text = new List<string> { "Month" },
+                Display = true
+            };
+            chart.Options.Scales.Add("x", xAxis);*/
+
+
+            Data data = new Data
+            {
+                Labels = datestrings
+            };
+
+            LineDataset dataset = new LineDataset()
+            {
+                Label = "Time",
                 Data = times,
-                BackgroundColor = new List<ChartColor>
+                Fill = "true",
+                Tension = .01,
+                BackgroundColor = [ColorByName["Green"]],
+                BorderColor = [ColorByName["Green"]],
+                BorderCapStyle = "butt",
+                BorderDash = new List<int>(),
+                BorderDashOffset = 0.0,
+                BorderJoinStyle = "miter",
+                PointBorderColor = [ColorByName["Green"]],
+                PointBackgroundColor = new List<ChartColor> { ChartColor.FromHexString("#ffffff") },
+                PointBorderWidth = new List<int> { 1 },
+                PointHoverRadius = new List<int> { 5 },
+                PointHoverBackgroundColor = [ColorByName["Green"]],
+                PointHoverBorderColor = new List<ChartColor> { ChartColor.FromRgb(220, 220, 220) },
+                PointHoverBorderWidth = new List<int> { 2 },
+                PointRadius = new List<int> { 1 },
+                PointHitRadius = new List<int> { 10 },
+                SpanGaps = false
+            };
+
+            data.Datasets = new List<Dataset>
+            {
+                dataset
+            };
+
+            chart.Data = data;
+
+            ZoomOptions zoomOptions = new ZoomOptions
+            {
+                Zoom = new Zoom
                 {
-                    ChartColor.FromRgba(255, 99, 132, 0.2),
-                    ChartColor.FromRgba(54, 162, 235, 0.2),
-                    ChartColor.FromRgba(255, 206, 86, 0.2),
-                    ChartColor.FromRgba(75, 192, 192, 0.2),
-                    ChartColor.FromRgba(153, 102, 255, 0.2),
-                    ChartColor.FromRgba(255, 159, 64, 0.2)
+                    Wheel = new Wheel
+                    {
+                        Enabled = true
+                    },
+                    Pinch = new Pinch
+                    {
+                        Enabled = true
+                    },
+                    Drag = new Drag
+                    {
+                        Enabled = true,
+                        ModifierKey = Enums.ModifierKey.alt
+                    }
                 },
-                BorderColor = new List<ChartColor>
+                Pan = new Pan
                 {
-                    ChartColor.FromRgb(255, 99, 132),
-                    ChartColor.FromRgb(54, 162, 235),
-                    ChartColor.FromRgb(255, 206, 86),
-                    ChartColor.FromRgb(75, 192, 192),
-                    ChartColor.FromRgb(153, 102, 255),
-                    ChartColor.FromRgb(255, 159, 64)
-                },
+                    Enabled = true,
+                    Mode = "xy"
+                }
+            };
+
+            chart.Options.Plugins = new Plugins
+            {
+                PluginDynamic = new Dictionary<string, object> { { "zoom", zoomOptions } }
+            };
+
+            return chart;
+        }
+
+        private Chart GenerateVerticalBarChart(string token)
+        {
+            var dict = JsonConvert.DeserializeObject<Dictionary<DateTime, Tuple<int, int>>>(token);
+
+            var datestrings = new List<string>();
+            var sets = new List<double?>();
+            var reps = new List<double?>();
+            foreach (var kvp in dict!)
+            {
+                var key = kvp.Key;
+                var value = kvp.Value;
+                datestrings.Add(key.ToString());
+                sets.Add(value.Item1);
+                reps.Add(value.Item2);
+            }
+
+            Chart chart = new Chart
+            {
+                Type = Enums.ChartType.Bar
+            };
+
+
+            Data data = new Data
+            {
+                Labels = datestrings
+            };
+
+            BarDataset set_data = new BarDataset()
+            {
+                Label = "Sets",
+                Data = sets,
+                BackgroundColor = [ColorByName["Red"]],
+                BorderColor = [ColorByName["Red"]],
                 BorderWidth = new List<int>() { 1 },
                 BarPercentage = 0.5,
-                BarThickness = 6,
+                BarThickness = 10,
                 MaxBarThickness = 8,
                 MinBarLength = 2
             };
 
-            data.Datasets = new List<Dataset>();
-            data.Datasets.Add(dataset);
+            BarDataset rep_data = new BarDataset()
+            {
+                Label = "Reps",
+                Data = reps,
+                BackgroundColor = [ColorByName["Blue"]],
+                BorderColor = [ColorByName["Blue"]],
+                BorderWidth = new List<int>() { 1 },
+                BarPercentage = 0.5,
+                BarThickness = 10,
+                MaxBarThickness = 8,
+                MinBarLength = 2
+            };
+
+            data.Datasets = [set_data, rep_data];
 
             chart.Data = data;
 
@@ -209,73 +239,5 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             return chart;
         }
 
-        // GET: GraphController/Details/5
-        public ActionResult Details(int id)
-        {
-            return View();
-        }
-
-        // GET: GraphController/Create
-        public ActionResult Create()
-        {
-            return View();
-        }
-
-        // POST: GraphController/Create
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Create(IFormCollection collection)
-        {
-            try
-            {
-                return RedirectToAction(nameof(Index));
-            }
-            catch
-            {
-                return View();
-            }
-        }
-
-        // GET: GraphController/Edit/5
-        public ActionResult Edit(int id)
-        {
-            return View();
-        }
-
-        // POST: GraphController/Edit/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Edit(int id, IFormCollection collection)
-        {
-            try
-            {
-                return RedirectToAction(nameof(Index));
-            }
-            catch
-            {
-                return View();
-            }
-        }
-
-        // GET: GraphController/Delete/5
-        public ActionResult Delete(int id)
-        {
-            return View();
-        }
-
-        // POST: GraphController/Delete/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Delete(int id, IFormCollection collection)
-        {
-            try
-            {
-                return RedirectToAction(nameof(Index));
-            }
-            catch
-            {
-                return View();
-            }
-        }
     }
 }

@@ -92,14 +92,6 @@ namespace PROG455_FinalProject_ExerciseTracker.Models
         public string? GETResult { get; internal set; }
 
         #endregion
-
-        #region JSON
-
-        public string NSJsonSerialize(object obj) => JsonConvert.SerializeObject(obj, Newtonsoft.Json.Formatting.Indented);
-
-        public T? NSJsonDeserialize<T>(string json) => JsonConvert.DeserializeObject<T>(json);
-
-        #endregion
     }
 
 

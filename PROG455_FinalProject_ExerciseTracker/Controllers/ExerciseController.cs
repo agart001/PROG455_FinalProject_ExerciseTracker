@@ -11,6 +11,8 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
     public class ExerciseController : Controller
     {
         private static API api;
+
+        #region Index/Details
         // GET: ExerciseController
         public async Task<ActionResult> Index()
         {
@@ -56,7 +58,15 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             }
         }
 
+        public ActionResult Details(int id)
+        {
+            HttpContext.Session.SetString("ExerciseID", $"{id}");
+            return RedirectToAction("Index", "ExerciseData");
+        }
 
+        #endregion
+
+        #region Create
         // GET: ExerciseController/Create
         public ActionResult Create()
         {
@@ -110,12 +120,9 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             }
         }
 
-        public ActionResult Details(int id)
-        {
-            HttpContext.Session.SetString("ExerciseID", $"{id}");
-            return RedirectToAction("Index", "ExerciseData");
-        }
+        #endregion
 
+        #region Edit
         // GET: ExerciseController/Edit/5
         public ActionResult Edit(string token)
         {
@@ -182,6 +189,10 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             }
         }
 
+        #endregion
+
+        #region Delete
+
         // GET: ExerciseController/Delete/5
         public ActionResult Delete(string token)
         {
@@ -224,5 +235,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 return View();
             }
         }
+
+        #endregion
     }
 }

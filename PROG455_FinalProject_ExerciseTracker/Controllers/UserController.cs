@@ -12,6 +12,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
     {
         private static API api = new();
 
+        #region Index/Account
         /// <summary>
         /// Displays the index view.
         /// </summary>
@@ -23,6 +24,56 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
 
             return View();
         }
+
+        /// <summary>
+        /// Displays the user account view.
+        /// </summary>
+        /// <returns>The user account view.</returns>
+        public async Task<ActionResult> Account()
+        {
+            try
+            {
+                //Get the User's ID from the session data
+                var id = HttpContext.Session.GetString("UserID");
+                if (id == null)
+                {
+                    //If the user has not signed in/up, the session 'UserID' is null
+                    //Make the user sign in/up
+                    return RedirectToAction(nameof(SignIn));
+                }
+
+                //Query the API database to gather the User's info
+                await api.AsyncPOST("post.php?", new Dictionary<string, string>
+                {
+                    {
+                        "query",
+                        Hasher.UTF8Encode(new APIQuery
+                        {
+                            Table = "PROG455_FP",
+                            Query = $"SELECT * FROM Users WHERE ID = '{id}'"
+                        })
+                    }
+                });
+
+                //Verify that the API returned a result, whether that is an error code or not (TODO: further checks for errors needed)
+                var res = api.POSTResult;
+                if (res == null) throw new NullReferenceException($"{nameof(res)} : Result Null");
+
+                //Parse API json result(which is returned in an array)
+                var jobj = (JObject)JArray.Parse(res)![0]!;
+
+                //Parse the JObject into the VM model
+                User user = jobj.ToObject<User>() ?? throw new InvalidCastException($"{nameof(jobj)} : Cast to User");
+
+                return View(user);
+            }
+            catch
+            {
+                return RedirectToAction(nameof(SignIn));
+            }
+        }
+
+        #endregion
 
         #region SignIn
 
@@ -149,53 +200,5 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         }
 
         #endregion
-
-        /// <summary>
-        /// Displays the user account view.
-        /// </summary>
-        /// <returns>The user account view.</returns>
-        public async Task<ActionResult> Account()
-        {
-            try
-            {
-                //Get the User's ID from the session data
-                var id = HttpContext.Session.GetString("UserID");
-                if (id == null)
-                {
-                    //If the user has not signed in/up, the session 'UserID' is null
-                    //Make the user sign in/up
-                    return RedirectToAction(nameof(SignIn));
-                }
-
-                //Query the API database to gather the User's info
-                await api.AsyncPOST("post.php?", new Dictionary<string, string>
-                {
-                    {
-                        "query",
-                        Hasher.UTF8Encode(new APIQuery
-                        {
-                            Table = "PROG455_FP",
-                            Query = $"SELECT * FROM Users WHERE ID = '{id}'"
-                        })
-                    }
-                });
-
-                //Verify that the API returned a result, whether that is an error code or not (TODO: further checks for errors needed)
-                var res = api.POSTResult;
-                if (res == null) throw new NullReferenceException($"{nameof(res)} : Result Null");
-
-                //Parse API json result(which is returned in an array)
-                var jobj = (JObject)JArray.Parse(res)![0]!;
-
-                //Parse the JObject into the VM model
-                User user = jobj.ToObject<User>() ?? throw new InvalidCastException($"{nameof(jobj)} : Cast to User");
-
-                return View(user);
-            }
-            catch
-            {
-                return RedirectToAction(nameof(SignIn));
-            }
-        }
     }
 }

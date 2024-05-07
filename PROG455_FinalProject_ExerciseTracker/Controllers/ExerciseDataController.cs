@@ -18,6 +18,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
 
         private async Task<string> GetDataDict()
         {
+            //Get User, Exercise, and Data ID's
             var userid = HttpContext.Session.GetString("UserID")
                 ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
 
@@ -27,6 +28,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             var dataid = HttpContext.Session.GetString("DataID")
                     ?? throw new NullReferenceException($"{HttpContext.Session} : DataID");
 
+            //Query API using ID's as filter and get the Data json column as a result
             await api.AsyncPOST("post.php?", new Dictionary<string, string>
             {
                 {
@@ -40,6 +42,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                 }
             });
 
+            //Parse that result into a deserializeable json
             var node = (JObject)JArray.Parse(api.POSTResult!)![0]! ?? throw new InvalidCastException();
             var data = node.GetValue("Data")!.ToString();
             return data;
@@ -47,6 +50,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
 
         private async void SetDataDict(string newdata)
         {
+            //Get User, Exercise, and Data ID's
             var userid = HttpContext.Session.GetString("UserID")
                 ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
 
@@ -56,6 +60,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             var dataid = HttpContext.Session.GetString("DataID")
                     ?? throw new NullReferenceException($"{HttpContext.Session} : DataID");
 
+            //Query API using ID's as filter and update the Data json column with the new dat
             await api.AsyncPOST("post.php?", new Dictionary<string, string>
             {
                 {
@@ -156,44 +161,61 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         private Tuple<ActionResult, int> ParseExerciseDataView(string type)
         {
             ActionResult actres = null;
+
+            //If the row does not exist, create new data row
             if (api.POSTResult == "[]")
             {
+                //Generate id
                 var newdataid = Hasher.CreateID();
+
+                //Parse ActionResult based on type, set data to null
                 actres = ParseExerciseDataModel(type, newdataid, null);
+
+                //Set Data ID to Session context
                 HttpContext.Session.SetString("DataID", $"{newdataid}");
+
+                //Return ActionResult and ID, ID is a not '-1' meaing that a new row needs to be inserted
                 return new Tuple<ActionResult, int>(actres, newdataid);
             }
             else
             {
+                //Parse the query which returned a result
                 var noderes = (JObject)JArray.Parse(api.POSTResult!)![0]! ?? throw new InvalidCastException();
                 if (noderes == null) throw new NullReferenceException($"{nameof(noderes)} : Result Null");
 
+                //Get ID and Data columns
                 var nodeid = noderes.GetValue("ID");
                 var nodedata = noderes.GetValue("Data");
-
+                
+                //Data dictionary as string/json
                 var data = nodedata!.ToString();
 
+                //Set Data ID to Session context and parse ID as int
                 HttpContext.Session.SetString("DataID", nodeid?.ToString()!);
                 var dataid = int.Parse(nodeid?.ToString()!);
 
+                //Parse ActionResult based on type, pass data json to be deserialized
                 actres = ParseExerciseDataModel(type, dataid, data);
 
+                //Return ActionResult and '-1' since the column existed previously
                 return new Tuple<ActionResult, int>(actres, -1);
             }
         }
 
         private ActionResult ParseExerciseDataModel(string type, int dataid, string? data)
         {
+            //Pass DataType to view
             ViewData["DataType"] = type;
             switch (type)
             {
                 case "Reps":
-
+                    //New column
                     if(data != null) 
                     {
                         return View(new ExerciseDataWrapper<Tuple<int, int>>(new(dataid,
                         JsonConvert.DeserializeObject<Dictionary<DateTime, Tuple<int, int>>>(data)!)));
                     }
+                    //Existing column
                     else
                     {
                         return View(new ExerciseDataWrapper<Tuple<int, int>>
@@ -201,12 +223,13 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                     }
 
                 case "Timed":
-
+                    //New column
                     if (data != null)
                     {
                         return View(new ExerciseDataWrapper<TimeSpan>(new(dataid,
                         JsonConvert.DeserializeObject<Dictionary<DateTime, TimeSpan>>(data)!)));
                     }
+                    //Existing column
                     else
                     {
                         return View(new ExerciseDataWrapper<TimeSpan>
@@ -214,12 +237,13 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                     }
 
                 case "Unknown":
-
+                    //New column
                     if (data != null)
                     {
                         return View(new ExerciseDataWrapper<string>(new(dataid,
                         JsonConvert.DeserializeObject<Dictionary<DateTime, string>>(data!)!)));
                     }
+                    //Existing column
                     else
                     {
                         return View(new ExerciseDataWrapper<string>
@@ -238,8 +262,10 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         // GET: ExerciseDataController/Create
         public ActionResult Create(string type)
         {
-            TempData["DataType"] = type;
-            ViewData["DataType"] = type;
+            //Set the DataType in TempData/Session
+            ViewData["DataType"] = TempData["DataType"] = type;
+
+            //Choose view based on type
             switch (type)
             {
                 case "Reps": return View(new ExerciseDataForm<Tuple<int, int>>());
@@ -257,36 +283,18 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         {
             try
             {
-                var userid = HttpContext.Session.GetString("UserID")
-                ?? throw new NullReferenceException($"{HttpContext.Session} : UserID");
-
-                var exerciseid = HttpContext.Session.GetString("ExerciseID")
-                        ?? throw new NullReferenceException($"{HttpContext.Session} : ExerciseID");
-
-                var dataid = HttpContext.Session.GetString("DataID")
-                        ?? throw new NullReferenceException($"{HttpContext.Session} : DataID");
-
+                //Get type from tempdata
                 var type = (string)TempData["DataType"]!
                         ?? throw new NullReferenceException($"{TempData} : DataType");
 
-                await api.AsyncPOST("post.php?", new Dictionary<string, string>
-                {
-                    {
-                        "query",
-                        Hasher.UTF8Encode(new APIQuery
-                        {
-                            Table = "PROG455_FP",
-                            Query = $"SELECT Data FROM ExerciseData WHERE UserID = '{userid}' " +
-                            $"AND ExerciseID = '{exerciseid}' AND ID = '{dataid}'"
-                        })
-                    }
-                });
+                //Pull Data from API TODO: fix this, could become demanding if the data is large enough
+                var data = await GetDataDict();
 
-                var node = (JObject)JArray.Parse(api.POSTResult!)![0]! ?? throw new InvalidCastException();
-                var data = node.GetValue("Data")!.ToString();
-
+                //Get new date from collection
                 var date = DateTime.Parse(collection["Date"]!);
 
+                //Parse and add the new data from the collection to the data dictionary
+                //then return that updated dictionary as a string
                 string newdata;
                 switch (type)
                 {
@@ -295,18 +303,8 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
                     default: newdata = UnknownDataToken(collection, data, date); break;
                 }
 
-                await api.AsyncPOST("post.php?", new Dictionary<string, string>
-                {
-                    {
-                        "non-query",
-                        Hasher.UTF8Encode(new
-                        {
-                            Table = "PROG455_FP",
-                            Query = $"UPDATE ExerciseData SET Data = '{newdata}' WHERE UserID = '{userid}' " +
-                            $"AND ExerciseID = '{exerciseid}' AND ID = '{dataid}'"
-                        })
-                    }
-                });
+                //Update the API column with a new json value
+                SetDataDict(newdata);
 
                 return RedirectToAction(nameof(Index));
             }
@@ -321,12 +319,15 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         {
             try
             {
+                //Parse Data from json and Reps/Set from the collection
                 var dict = JsonConvert.DeserializeObject<Dictionary<DateTime, Tuple<int, int>>>(jdict) ?? throw new Exception();
                 var sets = int.Parse(collection["Sets"]!);
                 var reps = int.Parse(collection["Reps"]!);
 
+                //Add value to dictionary
                 dict.Add(date, new Tuple<int, int>(sets, reps));
 
+                //Re-serialize dictionary and return
                 return JsonConvert.SerializeObject(dict, Formatting.None);
             }
             catch (Exception ex)
@@ -339,13 +340,16 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         {
             try
             {
+                //Parse Data from json and Min/Sec from the collection
                 var dict = JsonConvert.DeserializeObject<Dictionary<DateTime, TimeSpan>>(jdict);
                 var mins = int.Parse(collection["Minutes"]!);
                 var secs = int.Parse(collection["Seconds"]!);
                 var time = new TimeSpan(0,mins, secs);
 
+                //Add value to dictionary
                 dict!.Add(date, time);
 
+                //Re-serialize dictionary and return
                 return JsonConvert.SerializeObject(dict, Formatting.None);
             }
             catch (Exception ex)
@@ -358,12 +362,15 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         {
             try
             {
+                //Parse Data from json and Value from the collection
                 var dict = JsonConvert.DeserializeObject<Dictionary<DateTime, string>>(jdict);
                 var value = (string)collection["Value"]!
                     ?? throw new InvalidCastException($"{nameof(collection)} : Value : string");
 
+                //Add value to dictionary
                 dict!.Add(date, value);
 
+                //Re-serialize dictionary and return
                 return JsonConvert.SerializeObject(dict, Formatting.None);
             }
             catch (Exception ex)
