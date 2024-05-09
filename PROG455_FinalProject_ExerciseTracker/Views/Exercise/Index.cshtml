@@ -5,6 +5,18 @@
     ViewData["Title"] = "Index";
 }
 
+<style>
+    html {
+        background-image: url('@Url.Content("~/Images/exercise_background.png")');
+        background-size: cover;
+        background-repeat: no-repeat;
+    }
+
+    body {
+        background-color: rgba(255, 255, 255, 0.001);
+    }
+</style>
+
 <h1>Index</h1>
 
 <p>
@@ -40,7 +52,7 @@
             </td>
             <td>
                 @Html.ActionLink("Edit", "Edit", new { token = item_token }) |
-                @Html.ActionLink("Details", "Details", new { id= item.ID }) |
+                @Html.ActionLink("View Data", "Details", new { id= item.ID }) |
                 @Html.ActionLink("Delete", "Delete", new { token = item_token })
             </td>
         </tr>

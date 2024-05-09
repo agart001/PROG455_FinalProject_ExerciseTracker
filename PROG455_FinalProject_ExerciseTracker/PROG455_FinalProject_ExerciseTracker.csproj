@@ -7,10 +7,28 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="wwwroot\Images\user_background.png" />
+    <None Include="wwwroot\Images\data_background.png" />
+    <None Include="wwwroot\Images\exercise_background.png" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="ChartJSCore" Version="3.10.1" />
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.2" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="System.Collections" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="wwwroot\Images\user_background.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Update="wwwroot\Images\data_background.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Update="wwwroot\Images\exercise_background.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

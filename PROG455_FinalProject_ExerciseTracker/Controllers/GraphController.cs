@@ -47,6 +47,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             return View();
         }
 
+        #region Charts
 
         private Chart GenerateLineChart(string token)
         {
@@ -65,15 +66,6 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             Chart chart = new Chart();
 
             chart.Type = Enums.ChartType.Line;
-            /*chart.Options.Scales = new Dictionary<string, Scale>();
-            CartesianScale xAxis = new CartesianScale();
-            xAxis.Display = true;
-            xAxis.Title = new Title
-            {
-                Text = new List<string> { "Month" },
-                Display = true
-            };
-            chart.Options.Scales.Add("x", xAxis);*/
 
 
             Data data = new Data
@@ -239,5 +231,6 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
             return chart;
         }
 
+        #endregion
     }
 }

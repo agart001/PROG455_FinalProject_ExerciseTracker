@@ -7,6 +7,18 @@
     var model_data_token = JObject.FromObject(Model.Data).ToString();
 }
 
+<style>
+    html {
+        background-image: url('@Url.Content("~/Images/data_background.png")');
+        background-size: cover;
+        background-repeat: no-repeat;
+    }
+
+    body {
+        background-color: rgba(255, 255, 255, 0.001);
+    }
+</style>
+
 <h1>Index</h1>
 
 <p>
@@ -43,10 +55,11 @@
         </tr>
     </thead>
     <tbody>
-        <tr>
-            @foreach (var item in Model.Data)
-            {
-                var item_token = string.Empty;
+        @foreach (var item in Model.Data)
+        {
+            var item_token = string.Empty;
+            <tr>
+                <!-- Start new row -->
                 <td>
                     @Html.DisplayFor(modelItem => item.Key)
                 </td>
@@ -54,11 +67,11 @@
                 {
                     case "Reps":
                         var cast = (Tuple<int, int>)item.Value;
-                        item_token = JObject.FromObject(new ExerciseDataForm<Tuple<int, int>> 
-                            { 
-                                Date = item.Key, 
-                                Data = cast
-                            }).ToString();
+                        item_token = JObject.FromObject(new ExerciseDataForm<Tuple<int, int>>
+                        {
+                            Date = item.Key,
+                            Data = cast
+                        }).ToString();
                         <td>
                             @Html.DisplayFor(modelItem => cast.Item1)
                         </td>
@@ -93,7 +106,7 @@
                     @Html.ActionLink("Edit", "Edit", new { token = item_token }) |
                     @Html.ActionLink("Delete", "Delete", new { token = item_token })
                 </td>
-            }
-        </tr>
+            </tr> <!-- End of row -->
+        }
     </tbody>
 </table>

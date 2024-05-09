@@ -21,7 +21,7 @@ namespace PROG455_FinalProject_ExerciseTracker.Controllers
         public IActionResult Index()
         {
             HttpContext.Session.SetString("API", BaseUrl);
-            return View();
+            return RedirectToAction("Index", "User");
         }
 
         public IActionResult Privacy()
