@@ -1,4 +1,16 @@
-# Workout Progress Tracker
+# Exercise Progress Tracker
+
+## Category
+Web-App
+
+## Client
+C# .NET MVC
+
+## Project Date
+April 15 - May 15, 2024
+
+## Description
+"Exercise Progress Tracker" is a simple web-based service designed for tracking workout progress. Users create accounts to track their progress on different exercises. Users can input exercises, define forms and descriptions, and log progress by entering reps and sets per session. Visual representations of progress, such as graphs or tables, are available based on user preference. The application/service has web interface to app interface and the user's data is stored in a database.
 
 ## Final Project Proposal by Alex Gartner
 
